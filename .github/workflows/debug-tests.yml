@@ -1,14 +1,15 @@
 name: debug-tests
 
-# 临时排障工作流：在 Linux 上跑全部测试，把完整日志回写到 ci-debug/last-run.log，
-# 便于在没有 Actions 日志访问权限时定位失败点。定位完成后删除本文件。
+# 临时排障工作流：在 Linux 上跑测试，把失败信息以 annotation 的形式写进 check-run，
+# 这样不需要下载 Actions 日志也能读到（annotations API 是公开可读的）。
+# 定位完成后删除本文件。
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -22,30 +23,20 @@ jobs:
           node-version: 22
 
       - name: Run tests
-        id: run
-        continue-on-error: true
         run: |
           set -uo pipefail
-          : > /tmp/test.log
           fail=0
           for f in tests/*.test.mjs; do
-            echo "=== $f ===" >> /tmp/test.log
-            if node "$f" >> /tmp/test.log 2>&1; then
-              echo "OK $f" >> /tmp/test.log
+            echo "=== $f ==="
+            if node "$f" > /tmp/out 2>&1; then
+              echo "OK $f"
             else
-              echo "FAILED $f" >> /tmp/test.log
+              echo "FAILED $f"
+              sed -e 's/%/%25/g' -e 's/\r//g' /tmp/out | grep -E "Error|error|assert|expected|actual|not ok|✖|at " | tail -n 8 | while IFS= read -r line; do
+                echo "::error title=${f}::${line}"
+              done
               fail=1
             fi
           done
-          echo "exit=$fail" >> /tmp/test.log
-          exit 0
-
-      - name: Save log
-        run: |
-          mkdir -p ci-debug
-          cp /tmp/test.log ci-debug/last-run.log
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@users.noreply.github.com"
-          git add ci-debug/last-run.log
-          git commit -m "ci: record test log" || exit 0
-          git push
+          echo "exit=$fail"
+          exit $fail
