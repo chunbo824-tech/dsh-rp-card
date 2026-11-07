@@ -1,7 +1,8 @@
 name: release
 
 # 推 tag 时发布；也可以手动运行（只跑测试，不发布）。
-# 发布使用 npm Trusted Publishing（OIDC），不需要 token。
+# 发布使用 npm Trusted Publishing（OIDC）：不需要 token，也不要写 registry-url，
+# 否则 setup-node 会生成带 ${NODE_AUTH_TOKEN} 的 .npmrc，反而挡住 OIDC。
 
 on:
   push:
@@ -22,7 +23,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
 
       # Trusted Publishing 需要 npm >= 11.5.1
       - name: Upgrade npm
@@ -47,4 +47,18 @@ jobs:
 
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/v')
-        run: npm publish --provenance --access public
+        env:
+          npm_config_registry: https://registry.npmjs.org
+        run: |
+          set -o pipefail
+          if npm publish --provenance --access public 2>&1 | tee /tmp/pub.log; then
+            echo "published"
+          else
+            sed -e 's/%/%25/g' -e 's/\r//g' /tmp/pub.log \
+              | grep -E "npm error|npm ERR|npm notice Publish|E[A-Z]{3,}|40[0-9]" \
+              | tail -n 8 \
+              | while IFS= read -r line; do
+                  echo "::error title=publish::${line}"
+                done
+            exit 1
+          fi
