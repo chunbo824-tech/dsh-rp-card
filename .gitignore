@@ -12,6 +12,8 @@ part-*.json
 03-*.css
 04-*.md
 .credentials*
+.npmrc
+.npm/
 *.log
 *.tmp
 .DS_Store
