@@ -1,12 +1,13 @@
 name: release
 
-# 打 tag 即发布：使用 npm Trusted Publishing（OIDC），不需要任何 token。
-# 前置：在 npm 包设置 → Trusted Publisher 里绑定本仓库与工作流名 release.yml。
+# 推 tag 时发布；也可以手动运行（只跑测试，不发布）。
+# 发布使用 npm Trusted Publishing（OIDC），不需要 token。
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,8 +28,23 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@latest
 
+      # 逐个文件跑，日志里能直接看出是哪个测试失败
       - name: Test
-        run: node --test tests/*.test.mjs
+        run: |
+          set -uo pipefail
+          fail=0
+          for f in tests/*.test.mjs; do
+            echo "::group::$f"
+            if node "$f"; then
+              echo "OK $f"
+            else
+              echo "FAILED $f"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
 
       - name: Publish
+        if: startsWith(github.ref, 'refs/tags/v')
         run: npm publish --provenance --access public
