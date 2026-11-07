@@ -1,0 +1,51 @@
+name: debug-tests
+
+# 临时排障工作流：在 Linux 上跑全部测试，把完整日志回写到 ci-debug/last-run.log，
+# 便于在没有 Actions 日志访问权限时定位失败点。定位完成后删除本文件。
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    if: "!contains(github.event.head_commit.message, 'ci: record test log')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run tests
+        id: run
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          : > /tmp/test.log
+          fail=0
+          for f in tests/*.test.mjs; do
+            echo "=== $f ===" >> /tmp/test.log
+            if node "$f" >> /tmp/test.log 2>&1; then
+              echo "OK $f" >> /tmp/test.log
+            else
+              echo "FAILED $f" >> /tmp/test.log
+              fail=1
+            fi
+          done
+          echo "exit=$fail" >> /tmp/test.log
+          exit 0
+
+      - name: Save log
+        run: |
+          mkdir -p ci-debug
+          cp /tmp/test.log ci-debug/last-run.log
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add ci-debug/last-run.log
+          git commit -m "ci: record test log" || exit 0
+          git push
