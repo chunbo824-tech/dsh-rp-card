@@ -28,6 +28,14 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@latest
 
+      # 把关键环境信息写进 annotation，便于不下载日志也能排障
+      - name: Diagnose
+        run: |
+          echo "::notice title=npm-version::$(npm -v)"
+          echo "::notice title=node::$(node -v)"
+          echo "::notice title=oidc-request-url::${ACTIONS_ID_TOKEN_REQUEST_URL:+present}"
+          echo "::notice title=npmrc::$(cat "$HOME/.npmrc" 2>/dev/null | tr '\n' ' ' | sed -e 's/%/%25/g')"
+
       # 逐个文件跑，日志里能直接看出是哪个测试失败
       - name: Test
         run: |
@@ -49,6 +57,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           npm_config_registry: https://registry.npmjs.org
+          NPM_CONFIG_PROVENANCE: "true"
         run: |
           set -o pipefail
           if npm publish --provenance --access public 2>&1 | tee /tmp/pub.log; then
