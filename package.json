@@ -1,0 +1,69 @@
+{
+  "name": "dsh-rp-card",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DeepSeek Harness 插件：按四部分流程创作 RP 卡，含世界书规则层、人工门禁、图像能力设置与平台组装。",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./lib/*": "./lib/*",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/*.js",
+    "docs/*",
+    "references/*.md",
+    "references/*.json",
+    "locale/*.json",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "rp-card",
+    "worldbook",
+    "roleplay"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chunbo824-tech/dsh-rp-card.git",
+    "directory": "."
+  },
+  "homepage": "https://github.com/chunbo824-tech/dsh-rp-card#readme",
+  "bugs": {
+    "url": "https://github.com/chunbo824-tech/dsh-rp-card/issues"
+  },
+  "author": "chunbo824-tech"
+}

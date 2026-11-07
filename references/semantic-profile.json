@@ -1,0 +1,15 @@
+{
+  "profileVersion": "2.1",
+  "userConfirmed": {"mainPrompt": "ppt", "date": "2026-11-04"},
+  "fieldOwnership": {
+    "writing": ["title", "ppt", "ptx", "post_text", "opening_statement", "wb"],
+    "profile": ["desc"],
+    "chat": ["built_in_css", "rgx_rep"],
+    "variables": ["ai_variable_tmpl", "ai_v_prompt", "ai_v_json", "ext.ai_variable_enabled"]
+  },
+  "stageFiles": ["part-1-writing.json", "part-2-description.json", "part-3-chat.json", "part-4-variable.json"],
+  "emptyTypes": {"string":"", "array":[], "object":"preserve confirmed skeleton", "number":"confirmed default only", "boolean":"confirmed default/disabled only"},
+  "worldbook": {"value":"正文知识，不含触发说明", "config":"key/match_type/key_region/value_region/depth/enable 等同条目字段", "resident":"仅必要内容；未确认常驻编码不得伪造", "conditional":"精确触发；OR/AND/REGEX 与 key 编码一致"},
+  "merge": "按字段归属读取四份当前 PASS 阶段 JSON；非归属空占位永不覆盖；显式关闭由 ext.ai_variable_enabled 等归属字段记录",
+  "evidence": ["docs/1-写卡提示词.txt", "docs/3-聊天页.txt", "user-adjustment-2026-11-04"]
+}

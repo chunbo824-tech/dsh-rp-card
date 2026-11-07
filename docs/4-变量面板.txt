@@ -1,0 +1,743 @@
+11.03 05:39
+变量面板
+变量面板设计与实现规范 v1.0
+---
+第 0 章 · 系统定位与整体架构
+0.1 变量面板解决什么问题
+变量面板不是聊天状态栏的替代品。如果它只用来输出状态数值，就与聊天消息里的状态栏功能极度重合。
+变量面板的真正价值在于：把大量玩家需要反复查阅的静态内容（地图、商店、说明文档、命令卡、任务池、规则速查）直接用程序写入面板，再用少量变量控制区块显隐和动态数值。
+以末日拘束系统为例：
+· 地图是写死的 HTML 节点 + 绝对定位坐标，不是变量。
+· 商店是写死的商品卡列表，不是变量。
+· 任务定制模板是写死的表单结构，不是变量。
+· 变量只负责：当前系统等级（决定哪些商店层级显示）、当前积分（填数值）、当前所在地点（决定地图哪个节点高亮）。
+文档一的实际设计中，变量占比约为 5%–10%，静态内容占比约为 90%–95%。该比例仅是具体项目的经验参考，不构成所有变量面板的强制指标。 核心原则是静态内容占主体、动态变量承担必要的数据更新与控制职责。对于日志查看器等确实需要大量动态数据的面板，变量占比可以更高。
+0.2 三部分分工
+部分 字段 职责
+数据骨架 ai_variable_json 给 LLM 看的字段结构参考（draft-07 JSON Schema）
+面板皮肤 ai_variable_template / ai_v_template 真正的代码实现端口：<style> + HTML + Mustache 模板
+变量提示词 ai_variable_prompt / ai_v_prompt 规定 LLM 每轮输出什么 JSON，由平台注入 DOM
+三者缺一不可。数据骨架约束输出形状，变量提示词驱动输出内容，面板皮肤决定玩家看到什么。
+0.3 与 built_in_css 的平级关系
+变量面板通过 ai_variable_template 字段维护，built_in_css 通过 built_in_css 字段维护。两者在卡片 JSON 中属于两个独立字段，渲染时共享同一主文档。
+浮动按钮是两者之间唯一的技术交接点：按钮样式由 built_in_css 负责，按钮的功能是触发变量面板。 除此之外，两者互不侵入，不相互承担对方的实现职责。
+板块 核心职责
+built_in_css 消息正文、页面视觉呈现、正则替换生成的结构、纯 CSS 交互
+变量面板 基于 JSON 数据、模板语法和 CSS 的程序化界面
+0.4 四类标记与证据标准
+全文使用以下四类标记，区分技术信息的适用范围和验证状态：
+标记 含义 最低证据要求 处理方式
+硬性约束 平台能力边界或不可违反的架构规则 平台文档、平台行为确认或明确的架构约束 必须遵守
+已验证方案 已经在目标环境完成验证，可以作为可靠实现依据 在目标平台实际运行，并确认预期行为 满足条件时优先采用
+案例方案 针对具体需求形成的实现实例，有实际运行记录，但整体设计可能只适用于特定需求 有实际运行记录，但适用范围或维护成本存在限制 参考设计，不强制复用
+待验证方案 技术上具有可行性，但尚未在目标环境确认 仅有技术推理、外部标准依据或尚未完成平台实测 必须先在目标平台实测，不得描述为可用能力
+特别注意：
+· “案例方案”与“已验证方案”不是同一类。某个案例可以有实际运行记录，但它的整体设计仍然可能只适用于特定需求，不应被误认为通用规范。
+· 不得因为某个方案理论上可行，就直接将它写进已验证方案。
+· 平台行为确认应尽量记录具体平台、测试环境和测试结果。否则“已验证”可能在平台更新后失去适用性。
+0.5 案例状态速查
+案例 标记 使用边界
+商店十级布尔控制 已验证方案 文档一实际使用
+定制面板批量内容展示 案例方案 存在已知硬伤，按选项规模和维护频率选择
+地图 Desktop/Mobile 两套 HTML 案例方案 特定布局需求下的实现
+背景 SVG Data URI（background-image） 已验证方案 已在既往作品实际生效；content: url() 写法另见 §7.2
+radio + :checked Tab 已验证方案 当前变量面板单例环境
+---
+第 1 章 · 平台技术环境与硬性边界
+1.1 模板语法
+硬性约束：当前已验证有效的是以下五种写法：
+```handlebars
+{{变量名}}                       插值
+{{对象.属性}}                    嵌套属性
+{{数组.length}}                  数组长度
+{{#if 条件}}...{{else}}...{{/if}}  条件分支
+{{#each 数组}}...{{/each}}       遍历
+```
+平台不具备已验证的算术、比较、字符串拼接和自定义 helper 能力。
+术语统一称为「平台模板语法」或「平台 Mustache-like 模板语法」。
+证据分级：「未验证语法」不等于「禁用语法」。新语法可以尝试，但必须先实测确认后再纳入已验证范围。未实测前，不得描述为可用能力。
+已确认不支持的写法：{{../outer}} 跨层引用、{{> partial}} 子模板、{{! comment }} 注释、{{#with}}、{{#unless}}、{{#lookup}}。
+1.2 DOM 与图形能力
+硬性约束：
+· 无可用的 JavaScript 执行环境。模板内不得有 <script>。
+· 不依赖 localStorage、MutationObserver、setInterval 等脚本机制。
+· 平台会剔除 HTML 中的 inline <svg> 元素，因此当前作品的地图采用 div、absolute positioning 和 transform。该结论针对当前目标平台已经测试的 HTML 模板处理路径，不直接推广为所有 SVG 使用方式均不可用。 通过 CSS background-image: url("data:image/svg+xml,...") 引用的 SVG Data URI 属于不同的资源加载路径，已在既往作品中实际生效（见 §7.2 第六步）。
+关于 <button> 元素：
+变量面板没有可用的 JavaScript 执行环境。普通 <button> 不会自动执行自定义业务动作，因此不得将其作为需要 JavaScript 事件处理的交互入口。
+需要区分两件事：
+· HTML 原生行为：<button> 可以获得键盘焦点，可以通过 Enter / Space 激活，在表单内可能触发表单提交。这些是浏览器提供的原生行为，不是「没有行为」。
+· 开发者期望的业务行为：写了 <button>复制模板</button> 并不会自动复制文本。业务行为需要 JS 或平台原生机制驱动，两者在变量面板内都不存在。
+变量面板中的交互应优先使用平台已经验证支持的原生机制：
+交互类型 推荐实现 适用边界
+展开 / 折叠 <details> + <summary> 浏览器原生交互
+单选 / 多选 <input type="radio"> / <input type="checkbox"> + <label for> 浏览器原生交互
+平台原生复制 <div data-panel-copy="..."> 依赖平台对该属性的原生处理
+纯视觉装饰 <div class="xxx-btn"> 只承担视觉呈现，不宣称具备按钮行为
+硬性约束：不得将普通 <button> 当作具备自定义业务功能的交互控件使用。
+关于 role="button" 与 tabindex="0"：
+role="button" 只提供辅助技术语义（屏幕阅读器会把元素识别为按钮），tabindex="0" 只提供键盘焦点能力。两者本身不会生成点击、Enter 或 Space 对应的业务行为。 使用 <div role="button" tabindex="0"> 时，必须确认：
+· 实际激活行为由平台提供（如 data-panel-copy 由平台处理点击事件）。
+· 或者该元素只承担纯视觉装饰，不宣称具备交互能力。
+不得仅通过添加 role="button" 就将没有实际交互能力的 <div> 描述为可用按钮。
+关于视觉隐藏控件：display: none 会让 radio / checkbox 从可访问性树和键盘焦点流程中移除，关联 label 在部分浏览器或辅助技术下触发表现不稳定。已验证稳定的视觉隐藏方案是 opacity: 0 + position: absolute + clip。
+1.3 状态管理
+两种不同生命周期的状态：
+状态类型 载体 生命周期
+跨轮业务状态 AI 每轮输出的 JSON 可以跨对话轮次延续
+DOM 临时交互状态 radio、checkbox、:checked、:has()、<details> 当前 DOM 生命周期内有效
+硬性约束：DOM 的点击状态不会自动写回 JSON。
+· 玩家通过对话提出状态修改，可以由 AI 更新 JSON。
+· 不能将玩家点击界面误认为可以修改持久化状态。
+· 跨轮状态的唯一载体是 AI 每轮输出的 JSON。CSS 零记忆，模板零记忆。
+1.4 面板生命周期与 DOM 标识
+硬性约束：
+· 变量面板由平台控制挂载和卸载。两种可能机制：挂载/卸载式（打开时插入 DOM，关闭时移除）或状态标记式（产物一直在 DOM 里，通过 [data-state="open"] 控制显隐）。需实测确认，不得固定认定某一种机制。
+· 面板属于平台渲染单例。
+· 面板内部 tab 使用固定 ID。
+· CSS 可以控制显示效果，但不能替代平台的挂载、卸载和生命周期管理。
+· 模板内不要自己用 <details open> + 隐藏 summary 控制面板显隐。
+ID 与选择器约束：
+· 面板内部固定 ID 必须唯一。
+· 同一个 Tab 组的 radio 必须使用相同 name。
+· 不同 Tab 组必须使用不同 name。
+· CSS 选择器必须尽可能限制在面板根节点下。
+· 不得使用容易命中平台其他 UI 的宽泛 ID 或全局选择器。
+· 修改 DOM 结构时，必须同步检查相关 CSS 选择器。
+---
+第 2 章 · 数据设计与变量骨架（ai_variable_json）
+2.1 数据设计原则
+· 静态展示内容原则上不进入 JSON。
+· 纯展示文本不创建变量。
+· 固定值不创建变量。
+· 能确定性计算的值，优先在 AI 提示词侧计算。
+· 不为未来可能出现的功能提前创建无明确职责的字段。
+· 一个字段承担一个明确职责。
+· 避免深层嵌套：平台模板只支持 {{obj.prop}} 一层嵌套，超过两层无法直接引用。
+· 数组元素结构统一：instructors 数组内每个元素字段相同，不要出现有的元素有 age 有的没有。
+2.2 JSON Schema 结构
+硬性约束：ai_variable_json 使用 draft-07 JSON Schema 语法。
+关键词 作用
+type 数据类型
+description 语义和使用说明
+minimum / maximum / enum 合法值域
+required 必填字段
+合法类型示例（不使用伪联合类型）：
+```json
+{
+  "type": ["integer", "null"],
+  "description": "系统等级。有效范围 1–10。来源：当前可确认的权威状态。未知时为 null。"
+}
+```
+合法的 JSON Schema 联合类型用数组表示，不是 "integer | string | boolean" 这种伪联合类型。
+三层职责划分：
+层级 职责 不负责
+Schema 验证数据结构（类型、必填、值域、枚举） 判断剧情事实是否真实
+Prompt 规定数据来源与更新行为 验证输出格式合法性
+实际输出 仍需检查是否符合剧情和业务事实 ——
+description 只是语义指导，不会自动验证字段的剧情来源和业务真实性。真实性由 ai_variable_prompt 的输出规则保证，但仍需在最终验证时检查。
+2.3 状态字段与控制字段
+类型 示例 用途
+状态字段 systemLevel / availableFunds / day 驱动动态数值显示
+控制字段 showMap / shop_lv1 / currentTab 驱动区块显隐与交互状态
+控制字段的四种类型：
+控制字段类型 示例 能力边界
+模板显隐控制 showMap / shop_lv1 控制模板区块是否显示，字段值由 AI 依据剧情状态计算
+AI 管理的跨轮状态 对话中明确要求切换的模式（如「改为夜间模式」） 由 AI 更新 JSON，每轮继承
+DOM 临时交互状态 当前选中的 Tab、checkbox 勾选状态 仅在当前 DOM 生命周期内有效，不自动写回 JSON
+平台生命周期状态 面板是否挂载、浮动按钮是否显示 由平台管理，不由任何 JSON 字段控制
+硬性约束：
+· 不得将 DOM 点击产生的临时状态定义为能够自动持久化的 JSON 控制字段。 currentTab 等字段只有在由 AI 根据对话更新、或用于初始化模板默认状态时，才具有 JSON 控制意义。玩家点击 Tab 2 只改变 DOM 状态，不会自动产生 {"currentTab": 2}。
+· panelEnabled 不能替代平台对变量面板的挂载、卸载控制。 面板是否显示由平台决定，不由 JSON 字段控制。
+· 如果某个字段需要「跨轮保持」，必须由 AI 在 ai_variable_prompt 中明确规定「读取上一轮的值，除非玩家明确要求改变」。
+JSON 字段到 DOM 的映射前提：
+JSON 字段只有在模板存在可用的绑定或条件渲染路径时，才能实际影响 DOM。当前平台模板语法没有比较运算，也没有将变量值直接映射为 HTML 属性的通用能力。
+例如，让 currentTab 决定哪个 radio 输出 checked 属性：
+```html
+<!-- 模板无法直接写：<input type="radio" {{#if currentTab==1}}checked{{/if}}> -->
+<!-- 因为模板语法没有比较运算 -->
+```
+正确做法：由 Prompt 预计算布尔控制字段。
+```json
+{
+  "tab_system": true,
+  "tab_shop": false
+}
+```
+```handlebars
+<input type="radio" name="vp-tabs" id="vp-tab-1" {{#if tab_system}}checked{{/if}}>
+<input type="radio" name="vp-tabs" id="vp-tab-2" {{#if tab_shop}}checked{{/if}}>
+```
+硬性约束：不得假设任意 JSON 字段都能直接初始化 DOM 控件状态。对于当前模板语法无法直接完成的属性赋值或状态映射，必须由 Prompt 预计算布尔控制字段，再通过 {{#if}} 条件渲染输出对应属性。
+已验证方案：商店等级显示
+项目 实现方式
+商品内容 模板硬编码
+等级控制 shop_lv1 至 shop_lv10（10 个布尔字段）
+条件显示 独立 {{#if shop_lvN}} 区块
+等级计算 Prompt 预计算
+JSON 数据量 只输出少量布尔字段
+这套方案的核心 trade-off：用 10 个布尔换约 400 个商品字段。当某个内容集合庞大且相对静态时，把「是否显示」压缩成少量布尔字段，内容本身硬编码在模板里；让 AI 每轮只输出布尔，不重写内容。
+---
+第 3 章 · 变量提示词设计（ai_variable_prompt）
+3.1 输出契约
+硬性约束：
+· 只输出 JSON。
+· 不解释 JSON。
+· 不将 JSON 内容写入正文。
+· 输出结构必须符合 Schema。
+3.2 字段更新规则
+每个字段必须明确：
+· 数据类型。
+· 字段语义。
+· 默认值。
+· 数据来源。
+· 取值范围。
+· 更新条件。
+· 跨轮继承方式。
+3.3 数据来源与优先级
+来源 适用字段 更新规则
+上一轮状态继承 面板开关、地图位置 没有有效变更事件时，保持上一轮的值
+当前剧情读取 资金、等级、客户状态 只能依据已经发生的事件更新
+固定规则计算 经验进度、成本合计 必须按预先规定的公式计算
+玩家明确要求的定位：玩家明确要求属于更新授权条件，不是独立的数据事实来源。玩家说「改为夜间模式」时，是授权 AI 更新某个字段，而不是从玩家话语中直接提取一个数据值。字段的来源仍是「剧情读取」或「固定规则计算」，玩家要求只是允许修改的触发条件。
+冲突处理：数据来源不足或发生冲突时，不得凭空编造确定值。
+3.4 预计算案例
+已验证方案：商店等级布尔值
+由于模板不支持比较运算，由 Prompt 根据系统等级生成 shop_lv1 至 shop_lv10：
+```
+若 systemLevelKnown = true 且 systemLevel = N：
+第 1 至第 N 个字段（shop_lv1…shop_lvN）输出 true；
+第 N+1 至第 10 个字段输出 false。
+若 systemLevelKnown = false 或 systemLevel 为 null：全部 10 个字段输出 false。
+```
+已验证方案：经验百分比
+由 Prompt 计算：
+```
+min(100, max(0, floor(current / target * 100)))
+```
+模板只负责将计算结果绑定到 CSS 的 width。
+这两个案例共同说明：模板不擅长计算时，应当把计算职责放到数据生成阶段，而不是试图在模板里模拟程序逻辑。
+---
+第 4 章 · 面板模板设计（ai_variable_template）
+4.1 三层模板结构
+· <style>：界面样式。
+· 静态 HTML：固定内容和 DOM 结构。
+· 模板绑定：动态数据、条件显隐和数组循环。
+4.2 静态内容与动态内容
+· 地图、商品卡、说明文档等可以直接硬编码。
+· 动态状态通过变量绑定。
+· 条件显示使用 {{#if}}。
+· 数组循环使用 {{#each}}。
+· 不应为了追求所谓的「数据驱动」，把所有静态内容强行转化成 JSON。
+4.3 典型实现：商店分级显示
+完整结构见 2.3 节。
+定位：商店分级显示是「当前约束下的合理方案」，不是「唯一最优解」。它的合理性在于商品集合庞大且相对静态时，用少量布尔换大量字段能显著降低 token 成本和容错成本。如果商品需要频繁动态变化（如限时折扣），这套方案不适用。
+代价清单：
+· 新增等级需要同步修改 Schema、Prompt、Template 三处。
+· 修改商品价格 / 名称只能改模板，不能改 JSON。
+· 模板膨胀：全部商品卡硬编码，<style> + HTML 可达 2000 行。
+· 不支持数据驱动（如「限时折扣」），只能静态。
+适用条件：商品集合庞大且相对静态时，这套方案是合理选择。如果要「动态商品」或「限时折扣」，必须换实现。
+4.4 模板字段完整性
+硬性约束：
+· 模板引用的字段必须在 Schema 中定义。
+· 字段类型与模板用法必须匹配。
+· 数组字段必须正确声明为数组。
+· 条件字段必须有明确的真假语义。
+· 可选字段必须有缺失处理方案。
+· 废弃字段应从 Schema、Prompt 和 Template 同步清理。
+· 模板内不得使用 <button> 作为交互入口（见 1.2 节）。
+字段名准确性：模板里的 {{shop_lv1}} 与 Schema 里的 shop_lv1 必须逐字一致。
+ID 与选择器约束（同 1.4 节）：
+· 面板内部固定 ID 必须唯一。
+· 同一个 Tab 组的 radio 必须使用相同 name，不同 Tab 组必须使用不同 name。
+· CSS 选择器必须尽可能限制在面板根节点下。
+· 不得使用容易命中平台其他 UI 的宽泛 ID 或全局选择器。
+· 修改 DOM 结构时，必须同步检查相关 CSS 选择器。
+---
+第 5 章 · 无 JS 交互设计
+5.1 Tab 切换
+已验证方案：radio + :checked ~ 兄弟选择器。完整结构示例：
+```html
+<div class="vp-tab-form">
+  <input type="radio" name="vp-tabs" id="vp-tab-1" class="vp-tab-radio" checked>
+  <input type="radio" name="vp-tabs" id="vp-tab-2" class="vp-tab-radio">
+  <div class="vp-tab-bar">
+    <label class="vp-tab-btn" for="vp-tab-1">系统面板</label>
+    <label class="vp-tab-btn" for="vp-tab-2">系统商店</label>
+  </div>
+  <div class="vp-panels">
+    <div class="vp-panel vp-panel-1">...</div>
+    <div class="vp-panel vp-panel-2">...</div>
+  </div>
+</div>
+```
+```css
+.vp-tab-radio {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.vp-panel { display: none; }
+#vp-tab-1:checked ~ .vp-panels .vp-panel-1,
+#vp-tab-2:checked ~ .vp-panels .vp-panel-2 { display: block; }
+```
+首 Tab 兜底：
+```css
+.vp-tab-form:not(:has(input:checked)) .vp-panel-1 { display: block; }
+```
+键盘焦点可见性：
+radio 被视觉隐藏后仍可通过键盘聚焦，但直接给 radio 设置轮廓不一定能让用户看到有效的焦点反馈——radio 只有 1×1 px，轮廓几乎不可见。
+已验证可行的方案：用 :has() + :focus-visible 让隐藏 radio 的聚焦状态映射到对应的可见 label。
+```css
+.vp-tab-form:has(#vp-tab-1:focus-visible) label[for="vp-tab-1"],
+.vp-tab-form:has(#vp-tab-2:focus-visible) label[for="vp-tab-2"] {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+```
+关于选择器的使用：
+· 如果需要判断整个 radio 组内是否有任意一个 radio 获得焦点，用类选择器就够了：.vp-tab-form:has(.vp-tab-radio:focus-visible)。
+· 如果需要将某个特定 radio 的焦点状态映射到对应 label，必须使用能够唯一识别该 radio 的选择器，例如 ID（#vp-tab-1）或具有唯一匹配范围的属性选择器。类选择器本身并非不可用，但如果多个 radio 共用同一个类（如 .vp-tab-radio），就无法仅凭该类区分具体选项。
+前提条件：
+· 依赖目标浏览器对 :has() 和 :focus-visible 的支持，应在目标环境实测。
+· 如果 radio 组数量较多，需要为每个 radio 写一条 :has() 规则，或用属性选择器简化（如 :has([id^="vp-tab-"][id$="-1"]:focus-visible)），但要注意属性选择器的匹配范围不能过宽。
+关于 pointer-events: none：它不妨碍通过关联 label 激活 radio（label 上的点击仍会触发 radio 的 :checked），但会让 radio 自身不接收鼠标指针命中。这与当前交互设计一致——鼠标用户通过 label 操作，键盘用户通过原生 radio 组键盘行为操作。
+验收要求：视觉隐藏的 radio 组必须满足第 10 章 E 类的四项键盘可操作性验收标准（见第 10 章）。
+适用条件：面板单例场景。单例面板用固定 ID，不涉及 TURN_ID。
+5.2 单选与多选
+场景 用哪种控件
+互斥选项 radio
+可以同时选择的项目 checkbox
+互斥但允许「不选」的组 radio + 一个空值选项（同组一个 value="" 的 radio）
+视觉隐藏方案：用 opacity: 0 + position: absolute + clip，不用 display: none。这是当前已验证交互实现的推荐边界，不是 HTML 标准本身禁止 display: none。display: none 的问题是会让控件从可访问性树和键盘焦点流程中移除，关联 label 在部分浏览器或辅助技术下触发表现不稳定。
+空值选项的实现：
+```html
+<input type="radio" name="group-a" id="group-a-none" value="" checked>
+<label for="group-a-none">不选</label>
+<input type="radio" name="group-a" id="group-a-1" value="opt1">
+<label for="group-a-1">选项 1</label>
+```
+如果组内语义允许「不选」，必须显式提供这个空值选项。
+5.3 折叠和条件交互
+<details> 折叠（无需 ID）：
+```html
+<details class="vp-hist-tab">
+  <summary>Lv.1 — 初始商店</summary>
+  <div class="vp-hist-body">...</div>
+</details>
+```
+```css
+details.vp-hist-tab > summary::-webkit-details-marker { display: none; }
+details.vp-hist-tab > summary::marker { content: ""; }
+details.vp-hist-tab > summary::after { content: "+"; }
+details.vp-hist-tab[open] > summary::after { content: "−"; }
+```
+:checked 条件显隐：
+```css
+.vp-panel-3 .vp-copybox-body span { display: none; }
+.vp-panel-3:has(#sex-1:checked) .vp-cb-1 .vp-copybox-body span:nth-of-type(1) { display: inline; }
+```
+:has() 开关显隐：
+```css
+#operation-content { display: none; }
+.yb-drawer:has(.yb-switch input:checked) #operation-content { display: block; }
+```
+5.4 定制面板批量内容展示
+案例方案：把 DOM 当字符串缓冲区，用户勾选后手动复制。
+三层结构（简化示意，完整 DOM 层级需与 CSS 选择器一致）：
+```html
+<!-- 第一层：隐藏的 checkbox 阵列 -->
+<input type="checkbox" id="sex-1" class="vp-av-in">
+<label class="vp-av-lab" for="sex-1">男性</label>
+<input type="checkbox" id="sex-2" class="vp-av-in">
+<label class="vp-av-lab" for="sex-2">女性</label>
+<!-- 第二层：字符串缓冲区 -->
+<div class="vp-copybox vp-cb-1">
+  <div class="vp-copybox-body">
+    - 性别与气质：<span>男性</span><span>女性</span><span>中性</span>
+    - 年龄感与身形：<span>少年感</span><span>成熟</span><span>高大</span>
+  </div>
+</div>
+```
+```css
+.vp-copybox-body span { display: none; }
+.vp-panel-3:has(#sex-1:checked) .vp-cb-1 .vp-copybox-body span:nth-of-type(1) { display: inline; }
+.vp-panel-3:has(#sex-2:checked) .vp-cb-1 .vp-copybox-body span:nth-of-type(2) { display: inline; }
+```
+明确标注：以上为简化示意。完整 DOM 结构必须保证 CSS 选择器层级一致。读者直接复制示例前，应确认 .vp-cb-1 容器与 .vp-copybox-body 的层级关系与自己的实际 DOM 一致。如果希望示例具备直接复用能力，需补充完整的集中型 DOM 结构。
+这不是自动复制，而是动态显示可选内容。 用户看到的所有 display: inline 的 span 顺序拼接，是待复制文本。真正的复制动作由用户手动完成（选中 → Ctrl+C）。
+data-panel-copy 是平台原生能力，复制的是属性里的静态字符串（空白模板），不是勾选结果。用法示例：
+```html
+<div class="vp-tc-btn" role="button" tabindex="0" data-panel-copy="【系统形象定制】&#10;- 性别与气质：&#10;- 年龄感与身形：">复制模板</div>
+```
+注意：这里用的是 <div> 而不是 <button>。无 JS 环境下，<button> 的点击不会触发任何自定义业务行为。role="button" 与 tabindex="0" 只提供语义与键盘焦点，实际点击处理由平台的 data-panel-copy 机制完成。
+两种可选实现架构：
+结构 DOM 形态 优点 缺点 适用场景
+集中型 checkbox 与 span 分离，所有内容集中在一个容器 复制区集中，DOM 结构清晰 依赖 nth-of-type() 顺序，增删改序需要同步调整规则 选项少于 10 个且不常调整
+独立单元型 每个选项由 input、label、span 组成独立单元 不依赖集中容器的顺序映射，单项易维护 DOM 分散，复制内容需要逐项组织 选项较多或经常调整
+两种是可选实现架构，不是「独立单元型绝对优于集中型」。独立单元型消除了对 nth-of-type() 序号映射的依赖，但每个选项仍然需要保持控件、标签、输出节点之间的对应关系。
+已知硬伤：
+硬伤 表现 处理意见
+多选坑 互斥组全用 checkbox → 用户可同时勾「男性」「女性」 互斥组用 radio；允许不选时加空值选项
+顺序依赖 nth-of-type(N) 按 DOM 顺序 → 增删改序时规则全改 选项少时接受，或改用独立单元型
+无分隔符 相邻 span 只加 2px 间距，复制出来是「男性女性」 接受此限制，或在提示词里提醒玩家
+无法自动复制 用户仍需手动选中 → Ctrl+C 在 UI 上提示「选择下方文本后手动复制」
+---
+第 6 章 · 复杂图形与空间布局
+6.1 平台约束下的图形实现
+· 硬性约束：平台剔除 HTML 中的 inline <svg> 元素。当前图形主要通过 div 实现。
+· 节点使用 absolute positioning。
+· 连线使用背景、transform 和定位。
+· 动态位置状态通过模板控制 CSS 类名。
+6.2 地图案例
+案例方案：文档一的地图实现。
+项目 实现
+布局 Desktop / Mobile 两套 HTML
+节点 12 个地点节点
+连线 约 15 条连接线
+节点定位 绝对定位 + 百分比坐标
+连线定位 绝对定位 + 角度旋转
+地点高亮 loc_xxx 布尔字段控制类名
+响应式 @media 切换两套布局的 display
+6.3 连线实现经验
+案例方案：文档一在自身视口下实测有效的方案。
+```css
+height: 1px;
+background-image: repeating-linear-gradient(...);
+transform: rotate(-36.1deg);
+transform-origin: 50% 50%;
+```
+文档一在自身视口下实测发现 height: 0 + border-top 存在定位偏差。该现象可能与亚像素渲染及坐标栅格化有关。height: 1px + background-image + transform-origin: 50% 50% 是当前作品中实测有效的替代方案。不同缩放比和渲染环境仍需单独验证。
+不得将 height: 0 + border-top 的偏差根源断言为某一种确定原因。该结论是项目实测，不扩大为跨浏览器普遍规律。
+6.4 维护成本与替代方案
+代价清单：
+坑 具体表现
+坐标魔法数字 --map-x: 14.5% 是在某个视口下量出来的，改窗口宽度节点会重叠
+加地点要改多处 Schema + Prompt + HTML + CSS 坐标 + 连线坐标（× 2 端）
+两端都要改 Desktop 坐标 + Mobile 坐标 + 连线 Desktop 坐标 + 连线 Mobile 坐标
+斜线角度手算 角度从两点坐标三角函数算，改任何一端坐标都要重算
+节点颜色散落 12 个类各写一遍 --node-color
+溢出裁切 .vp-map-main { overflow: hidden }，加地点时不能越界
+百分比 + 固定宽度不匹配 --map-x: 14.5% 随容器缩放，--node-w: 48px 固定，小屏重叠
+替代方案评估：
+方案 适用情况 当前结论
+div + absolute 当前平台限制下的复杂地图 已实际使用（案例方案）
+背景 SVG Data URI 静态路线、动态节点 已验证方案（background-image 形态）。如果地图路线结构相对稳定，背景 SVG Data URI 可以成为优先方案：将静态路线预渲染为背景图，节点单独定位，节点状态通过模板动态控制。这样在路线结构不变时，修改节点信息或高亮状态不必重新维护全部连线。若新增地点改变了路线拓扑，仍需重新生成背景图。
+CSS Grid 结构规整的节点布局 可评估，但斜线较复杂
+纯文字列表 优先考虑维护成本 牺牲空间关系
+单一纵向布局 地图结构简单 牺牲桌面端布局效果
+6.5 CSS 维护规范
+· 坐标集中管理：--map-x / --map-y 写在 CSS 类里，不写在 HTML 内联样式里。
+· 颜色变量集中管理：--node-color-camp / --node-color-shop 等集中声明，不在 12 个类里各写一遍。
+· Desktop / Mobile 分开校验：两端坐标都要独立验证。
+· 检查 overflow：加节点时检查不越界。
+· 动态类名主体固定，仅切换状态后缀：{{#if loc_camp}} vp-map-node-active{{/if}}。
+· @property 注册可动画自定义属性（如 --gold-angle-a: <angle>）：高级 CSS 动画技术资产，不是普通面板实现的必要条件。 完整用法：
+```css
+@property --gold-angle-a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes goldOrbitA {
+  from { --gold-angle-a: 0deg; }
+  to   { --gold-angle-a: 360deg; }
+}
+```
+说明：注册后，浏览器可以依据 <angle> 类型对自定义属性进行插值动画。普通未注册的 CSS 自定义属性通常不具备这种类型化插值能力。
+· ::after 等伪元素用于减少不必要的 DOM：如 vp-map-node-active::after 画高亮圆点，避免在 HTML 里加额外元素。
+---
+第 7 章 · 与 built_in_css 的接口规范
+7.1 浮动按钮
+浮动按钮是变量面板与 built_in_css 之间唯一的交接点。按钮样式由 built_in_css 负责，按钮的功能是触发变量面板。
+7.2 完整技术链
+以下六步构成完整的技术链。全部步骤均为已验证方案；其中第六步的两种写法证据不同，按下面标注区分。
+第一步 · 命中平台按钮
+```css
+#customized-variable-panel-floating-button { /* 基础样式 */ }
+```
+第二步 · 隐藏原生图标
+```css
+#customized-variable-panel-floating-button svg,
+#customized-variable-panel-floating-button > * {
+  display: none !important;
+  visibility: hidden !important;
+}
+```
+第三步 · 用 ::before 替代内容
+```css
+#customized-variable-panel-floating-button::before {
+  content: "经营面板" !important;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.32em;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+}
+```
+已验证方案：content: "文本" 的替代方式。
+已验证方案：background-image: url("data:image/svg+xml,...") 的图形替代方式——既往作品已实际生效，SVG 图标可直接作为背景图内嵌，不受 inline <svg> 被剔除的影响。background-size / background-position 控制尺寸与居中，打开态在同一 ::before 上切换内容。
+同源注意：content: url("data:image/svg+xml,...") 是另一条写法，尚无同批作品证据；需要用它时按未验证处理并单独实测，不能因为 background-image 形态有效就推定它也有效。
+第四步 · 位置与外观
+```css
+#customized-variable-panel-floating-button {
+  position: fixed !important;
+  right: 0 !important;
+  top: 50% !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  padding: 20px 9px !important;
+  border-radius: 12px 0 0 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-right: 0 !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    -2px 0 14px rgba(0, 0, 0, 0.20) !important;
+  z-index: 2147483647 !important;
+}
+```
+关于 z-index：z-index: 2147483647 不保证绝对置顶。实际层级受 stacking context 限制——父级创建了新的 stacking context 时，子元素的 z-index 只在父级内部有效。浮动按钮能否真正置于最上层，取决于平台 DOM 结构中的 stacking context 关系，需实测确认。
+第五步 · 打开态配色
+平台可能用 [data-state="open"] 或 [aria-expanded="true"] 中的任意一种标记打开态。两个选择器都写，是为了覆盖两种可能的平台实现，不是要求两个属性同时存在。
+```css
+#customized-variable-panel-floating-button[data-state="open"],
+#customized-variable-panel-floating-button[aria-expanded="true"] {
+  background: rgba(168, 50, 40, 0.78) !important;
+  border-color: rgba(255, 180, 160, 0.50) !important;
+}
+```
+第六步 · 悬停与移动端
+```css
+#customized-variable-panel-floating-button:hover {
+  background: rgba(255, 255, 255, 0.20) !important;
+}
+@media (max-width: 520px) {
+  #customized-variable-panel-floating-button {
+    padding: 16px 9px !important;
+    border-radius: 999px !important;
+    right: 8px !important;
+  }
+}
+```
+7.3 CSS 能改与不能改的边界
+能力 说明
+✅ 改外观 颜色、形状、位置、伪元素内容
+✅ 改悬停态 :hover 规则（需要 !important 压制平台默认）
+✅ 改打开态外观 [data-state="open"] 双写
+⚠️ 改 display 控制 如果按钮仍然存在于 DOM 中，CSS 有时可以覆盖普通的显示样式；如果平台通过卸载 DOM、切换无法覆盖的状态规则或其他生命周期机制隐藏按钮，CSS 无法保证重新显示
+❌ 加点击逻辑 需要 JS。点击行为由平台控制
+精确边界：浮动按钮的显示生命周期由平台管理。CSS 可以在允许的级联范围内调整显示样式，但不能保证覆盖平台的状态控制，更不能恢复已经从 DOM 中卸载的元素。不得依赖 CSS 改写平台按钮的生命周期。
+7.4 技术链的完整依赖关系
+```
+built_in_css（浮动按钮外观）
+    ↓
+platform（决定按钮显示/隐藏）
+    ↓
+ai_variable_template（面板皮肤）
+    ↓
+platform（渲染单例，插入 DOM）
+    ↓
+玩家看到面板
+```
+浮动按钮的样式归 built_in_css，面板的样式归 ai_variable_template。两者不能混写——混写会导致作用域冲突和优先级不可控。
+7.5 浮动按钮硬约束（位置 · 层级 · 图标资产）
+本节是硬性约束，适用于每张启用变量面板的卡。实现位置仍在 built_in_css（第三部分）；第四部分只提出需求，不把下列样式写进面板模板。
+A. 相对位置
+收起态：position: fixed 贴视口右侧，约一半宽度停在屏内（参考实现 translate: 50% 0）；系统尺寸 64×64，移动端 54×54。悬停或键盘聚焦时向屏内位移（translate 归零）。
+展开态：从右侧边角移到视口底部居中（left: 50%、right: auto、bottom: 110px、translate: -50% 0），尺寸 40×40；移动端 bottom: 20px。位移与尺寸变化用 transition 过渡，只过渡 translate/transform/宽高/颜色。
+两态必须是同一元素的两个状态，不得新增 HTML 节点，也不得依赖平台默认定位；left/right/top/bottom 全部显式写出。
+B. 点击后行为
+展开态必须 z-index: 2147483647，浮于所有层最顶部，保证玩家随时能点到关闭；同屏出现的固定定位浮层（状态终端、任务面板等）不得盖住它。
+关闭动作由平台处理，CSS 不能加点击逻辑。因此关闭键在所有状态下都必须可见且可点击：不得 pointer-events: none、不得被遮罩层覆盖、不得移出视口或缩到不可点。
+打开态判定必须双写 [data-state="open"] 与 [aria-expanded="true"]；只写一种会在另一种平台实现下失效。
+若展开态改动 translate/transform，必须确认命中区域完整留在视口内。
+C. 外观实现方法
+容器外观（尺寸、圆角、边框、背景、阴影、悬停态、按下态、过渡）全部写在第三部分 built_in_css；面板模板里不得出现浮动按钮样式。
+收起态与展开态的容器外观都可独立编辑：配色、边框、阴影、尺寸与图标分别定义，不存在"收起态必须保持平台原样"的限制。
+平台原生图标必须先隐藏（其 svg 与直接子元素设为 display: none / visibility: hidden），再用 ::before 承载自定义图形；打开态用同一 ::before 切换为关闭符号或另一枚图标。
+图形资产由 Recraft 生成 SVG（image_asset fetch_svg，asset_type 取 icon_svg / decoration_svg），校验通过后以内嵌 data URI 作为 CSS 背景图使用。不得用 emoji、字体图标、平台自带图标，也不得用大量手写路径临时拼替代。
+图标用 background-size 控制尺寸并留透明安全边距；::before 必须 pointer-events: none，点击仍落到平台按钮本身。
+内嵌通道已验证：background-image: url("data:image/svg+xml,...") 在既往作品中实际生效。面板模板内的 inline SVG 仍会被平台剔除，因此图标必须走 CSS 背景图，不能写进模板。
+动效遵守 prefers-reduced-motion；过渡属性写成完整列表，不写 all。
+---
+第 8 章 · 完整工作流程
+第一步 · 明确面板目标和信息架构
+· 需要展示哪些静态内容（地图、商店、说明、命令卡）。
+· 哪些是动态数值（资金、等级、位置）。
+· 哪些是条件显隐的区块。
+· 需要哪些交互（tab 切换、折叠、开关、批量展示）。
+静态/动态的判断标准：判断内容是否应该硬编码，主要依据其是否属于稳定的固定资料，以及是否需要由 AI 在运行过程中更新。稳定的静态资料优先写入模板；需要依据剧情、业务事件或玩家操作更新的数据，应设计为变量。变化频率不是唯一判断标准——商店商品价格可能十轮不变，但仍然属于动态业务数据；地图节点位置可能只在完成任务后变化，但仍然需要变量控制。
+第二步 · 区分静态内容、动态字段和交互控制字段
+· 静态内容 → 模板硬编码。
+· 动态字段 → ai_variable_json 定义，{{...}} 绑定。
+· 交互控制字段 → 同样在 Schema 中定义，控制 {{#if}} 或 {{#each}}。
+· DOM 临时交互状态（如当前选中的 Tab）→ 不进入 JSON，仅在当前 DOM 生命周期内有效。
+第三步 · 检查平台能力和硬性限制
+· 对照第 1 章：模板语法五种、无 JS、inline SVG 被剔除、DOM 状态不跨轮、<button> 无业务行为。
+· 新语法 / 新容器标记为待验证，实测后决定是否采用。
+· 平台相同也需要验证 DOM 结构、CSS 作用域及实际选择器，不假设其他作品的实现可以直接迁移。
+第四步 · 设计 JSON Schema
+· 列出所有需要绑定的字段。
+· 为每个字段定 type / description / 范围 / required。
+· 区分状态字段与控制字段。
+· 数组元素结构统一。
+· 嵌套不超过一层。
+第五步 · 设计变量提示词
+· 明确「仅输出 JSON，不解释、不写进正文」。
+· 写清每个字段的语义、类型、来源、更新规则。
+· 跨轮字段写「读取上一轮什么，更新本字段」。
+· 控制字段默认值与变更条件写清。
+· 比较 / 算术 / 预计算全部前置到 Prompt。
+第六步 · 实现 HTML、CSS 和模板绑定
+· 静态 HTML 占主体，动态变量只承担必要的数据更新和控制职责。具体比例根据面板的信息结构决定，不强制要求达到 90% 以上。
+· 用 {{#if}} / {{#each}} 控制区块显隐与列表遍历。
+· 用 {{字段}} 绑动态数值。
+· 模板内不写 <script>。
+· 模板内不写 <button> 作为交互入口（见 1.2 节）。
+第七步 · 实现 tab、折叠、单选、多选等交互
+· Tab 用固定 ID radio + :checked ~。
+· 折叠用 <details>。
+· 开关显隐用 :has(input:checked)。
+· 视觉隐藏 radio 用 opacity: 0 + position: absolute + clip。
+· 互斥组用 radio，允许不选时加空值选项。
+· 视觉隐藏的 radio 需补充 :focus-visible 映射到 label 的样式，让键盘焦点可见。
+第八步 · 实现地图等复杂图形（如需要）
+· 不依赖 inline SVG。
+· 节点用 absolute positioning。
+· 连线用 height: 1px + background-image + transform。
+· Desktop / Mobile 两套布局分开维护。
+· 所有坐标用 CSS 变量集中管理。
+第九步 · 在 built_in_css 中完成浮动按钮外观
+· 浮动按钮样式写在 built_in_css，不写在模板里。
+· 隐藏原生图标 + ::before 替代内容。
+· 位置、外观、悬停态、打开态、移动端逐一覆盖。
+· 打开态双写 [data-state="open"] 和 [aria-expanded="true"]。
+第十步 · 验证
+· LLM 输出的 JSON 符合 Schema。
+· 面板渲染结果与 JSON 对应。
+· 静态内容正常显示。
+· 条件显隐区块按字段正确显示/隐藏。
+· tab 切换、折叠、开关都能操作。
+· 跨轮状态在下一轮正确恢复。
+· 浮动按钮外观符合主题，打开态配色正确。
+· 模板内没有 <script>，没有 <button> 作为交互入口。
+第十一步 · 检查三个变量面板文件之间的字段一致性
+· ai_variable_json 里定义的字段，ai_variable_prompt 有输出规则，ai_variable_template 有引用。
+· 三处字段名逐字一致，无拼写错误。
+· 废弃字段三处同步清理。
+第十二步 · 完成修改影响范围检查
+· 对照第 9 章矩阵，确认本次修改触及哪些文件。
+· 无关文件不被顺带改动。
+· 跨板块接口（浮动按钮）只改 built_in_css。
+---
+第 9 章 · 修改影响范围矩阵
+修改需求 Schema Prompt Template built_in_css
+新增商品（商品卡硬编码在模板中时） 通常不需要 通常不需要 需要 通常不需要
+修改商品描述（商品卡硬编码在模板中时） 不需要 通常不需要 需要 通常不需要
+增加商店等级 需要 需要 需要 通常不需要
+新增地图地点 视变量需求 视变量需求 需要 通常不需要
+修改地图视觉 不需要 不需要 需要 通常不需要
+新增变量字段 需要 需要 视用途而定 通常不需要
+修改浮动按钮状态样式（如打开态颜色） 不需要 不需要 不需要 需要
+修改面板内部 tab 视状态需求 视状态需求 需要 通常不需要
+矩阵说明：
+· 新增地图地点的影响范围取决于该地点的性质：如果新增一个完全静态的地点，可能只需要修改模板；如果新增地点需要独立动态高亮字段，则 Schema、Prompt、Template 必须同步修改；如果只是新增静态地点且复用已有控制字段，则可能只需要调整模板。
+· 修改浮动按钮状态样式是少数 built_in_css 需要、模板不需要的修改。这进一步强化了两个板块的接口边界。
+---
+第 10 章 · 完整自检与验收清单
+A. 架构与边界
+☐ 正确区分变量面板与 built_in_css。
+☐ 遵循平台实际支持的模板语法。
+☐ 未误用 JavaScript、inline SVG 或其他不支持的能力。
+☐ 未误将 DOM 临时交互状态当成跨轮状态。
+☐ 模板内不存在 <script>。
+☐ 模板内未使用 <button> 作为交互入口。
+B. JSON Schema
+☐ 字段类型合法（联合类型用数组表示）。
+☐ 每个字段有明确语义。
+☐ 避免无意义的静态字段。
+☐ 字段缺失处理有说明。
+☐ 数组、枚举、值域正确声明。
+☐ 嵌套不超过一层。
+C. Prompt
+☐ 只输出 JSON，不写进正文。
+☐ 字段来源和更新规则明确。
+☐ 跨轮状态正确继承。
+☐ 模板无法处理的计算已前置。
+☐ 不虚构数据。
+☐ 字段名与 Schema 逐字一致。
+D. Template
+☐ 模板引用的全部字段均在 Schema 中定义，且字段名准确。
+☐ 条件显示有效。
+☐ 静态内容直接写入模板。
+☐ DOM 结构完整。
+☐ 无错误字段引用。
+☐ 废弃字段已三处同步清理。
+E. 交互与视觉
+☐ tab 正常切换。
+☐ radio 与 checkbox 符合实际语义。
+☐ 互斥但允许「不选」的组有空值选项。
+☐ 折叠和条件显隐正常。
+☐ 移动端布局独立校验。
+☐ 地图节点和连线正确。
+☐ overflow 和滚动区域正常。
+☐ 视觉隐藏的 radio/checkbox 仍能通过预期的 label 操作。
+☐ Tab 键可以进入 radio 组，并将焦点定位到当前选中的选项（无选中项时按浏览器原生行为处理）。
+☐ 方向键可以按照目标浏览器的原生 radio 组行为切换选项。
+☐ 聚焦时有可见的焦点提示，且焦点提示映射到对应的可见 label。
+☐ 按 Space 可以激活当前聚焦的 radio，激活后对应的 panel 正确显示。
+☐ 使用 data-panel-copy 的元素已独立验证键盘可激活性，不因鼠标点击成功就默认键盘操作完整。
+F. 跨板块接口
+☐ 浮动按钮在 built_in_css 中修改，不在模板里。
+☐ 打开态正确识别（双写 [data-state="open"] 和 [aria-expanded="true"]）。
+☐ 修改浮动按钮接口时，只修改 built_in_css，不修改模板。
+☐ 未误修改平台按钮的业务逻辑。
+☐ 收起态贴右侧、展开态底部居中，两态位置与尺寸由 CSS 显式给定，移动端单独校准。
+☐ 展开态 z-index 为 2147483647，浮于所有浮层之上，关闭键始终可点。
+☐ 浮动按钮图标由 Recraft 生成 SVG，经 ::before 承载；未用 emoji、字体图标或手写路径拼替代。
+☐ CSS 内嵌 SVG 走 background-image: url("data:image/svg+xml,...")，未写进面板模板。
+☐ 收起态与展开态的外观分别定义，没有一处沿用平台默认图标或默认配色。
+G. 跨轮验证
+☐ 上一轮字段正确继承。
+☐ 有效变更正确更新。
+☐ 计算字段符合公式。
+☐ DOM 内交互未被错误当成持久化数据。
+H. 最终验证
+☐ LLM 输出 JSON 符合 Schema。
+☐ 面板渲染结果与 JSON 对应。
+☐ 静态内容正常显示。
+☐ 条件显隐区块按字段正确显示/隐藏。
+☐ tab 切换、折叠、开关都能操作。
+☐ 浮动按钮外观符合主题，打开态配色正确。
+☐ 修改影响范围与第 9 章矩阵一致。
+---
+附录 · v1.0 版本说明
+v1.0 的边界
+· 覆盖变量面板的设计、实现、验收全流程。
+· 区分硬性约束、已验证方案、案例方案、待验证方案四类信息，并给出各自的证据标准。
+· 明确 <button> 与 role="button" 的行为边界。
+· 明确隐藏 radio 的键盘可操作性验收要求（符合原生 radio 组键盘交互模型）。
+· 明确 JSON 控制字段映射到 DOM 的能力前提。
+· 明确 inline SVG 与 SVG Data URI 的证据分离。
+v1.0 不覆盖的内容
+· 尚未在目标平台实测的新 CSS 特性或模板语法。
+· content: url("data:image/svg+xml,...") 写法的 SVG 图形方案（background-image 形态已验证）。
+· 消息正文内嵌面板（涉及 TURN_ID）——归 built_in_css 规范。
+· 更多项目案例的具体实现——未来如主规范膨胀，再拆分为案例库。
+后续维护原则
+· 新增技术能力时，按第 0.4 节四类标记的证据标准归类，不跳过证据确认。
+· 平台行为确认应记录具体平台、测试环境和测试结果。
+· 不得因为某个方案理论上可行，就直接将它写进已验证方案。
+· 现有规则如需修改，优先确认是否属于文字精度问题还是实质技术问题——前者可直接修正，后者需重新评估所属标记类别。
+
