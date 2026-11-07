@@ -1,5 +1,13 @@
 # 更新记录
 
+## 1.0.1
+
+文档与发布流程，功能无变化。
+
+- README 安装段改为 npm 优先，GitHub 与本地检出作为备选。
+- 新增 `.github/workflows/release.yml`：推 `v*` 标签即跑测试并用 Trusted Publishing（OIDC）发布，不需要 token 或 OTP。
+- `package.json`：`repository.url` 规范化为 `git+https://...`，消除 npm 的自动修正警告。
+
 ## 1.0.0
 
 首个公开版本。
