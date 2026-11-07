@@ -64,6 +64,9 @@ assert.match(imgHtml, /loading="lazy"/);
 assert.throws(() => buildEmbedSnippet({ id: 'img-02', type: 'character_image' }), /远程 URL/);
 
 // 6. 供应商分工：位图走 Seedream，矢量/透明立绘走 Recraft，越界必须直接拒绝
+// 用假密钥把「缺密钥」分支挡掉，保证这组断言只验证分工，不依赖本机是否配过密钥
+process.env.IMAGE_GEN_PROVIDER_API_KEY = 'test-seedream-key';
+process.env.RECRAFT_API_KEY = 'test-recraft-key';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-guard-'));
 fs.mkdirSync(path.join(tmp, 'assets'), { recursive: true });
 await assert.rejects(() => runAssetAction({ action: 'generate', asset_type: 'icon_svg', prompt: 'x' }, tmp), /必须用 fetch_svg/);
@@ -97,3 +100,5 @@ assert.ok(!fs.existsSync(path.join(tmp, 'assets', 'wrong.png')));
 assert.ok(fs.existsSync(path.join(tmp, 'assets', 'wrong.jpg')));
 
 console.log('assets tests passed');
+delete process.env.IMAGE_GEN_PROVIDER_API_KEY;
+delete process.env.RECRAFT_API_KEY;
