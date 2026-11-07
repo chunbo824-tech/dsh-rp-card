@@ -74,7 +74,6 @@ assert.match(pass3, /完整组装/);
 assert.match(pass3, /全面评估/);
 assert.match(pass3, /进入拓展功能/);
 assert.match(pass3, /built_in_css/, '必须提醒面板按钮外观属于第三部分 CSS');
-
 // 4. status 给出分支，而不是直接要求第四部分
 const st = JSON.parse(run(`status --out "${out}"`));
 assert.equal(st.playableReady, true);

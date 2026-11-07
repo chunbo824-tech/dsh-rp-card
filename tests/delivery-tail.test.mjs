@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,10 +41,10 @@ const w = (name, data) => { const f = path.join(out, name); fs.writeFileSync(f, 
 
 run(`start --out "${out}" --title 收尾格式测试`);
 
-// 1. 第一部分交付：主动问第二部分想法，末行固定 PASS 提示
+// 1. 第一部分交付：给下一部分入口，末行用部分名提示 PASS
 const d1 = messageOf(run(`deliver --part writing --file "${w('w.json', writing)}"`));
 assert.match(d1, /第二部分/, '应主动给出下一部分的想法入口');
-assert.equal(lastLine(d1), '确认后回复「第 1 部分 PASS」', '末行必须是固定 PASS 提示');
+assert.equal(lastLine(d1), '当前待确认：第一部分：写卡正文。确认后回复「第一部分：写卡正文 PASS」', '末行用部分名给出 PASS 提示');
 
 // 2. 第二部分交付：问第三部分想法；仍有临时 URL 资源时要提醒回填
 fs.mkdirSync(path.join(out, '.card-build'), { recursive: true });
@@ -61,19 +61,19 @@ assert.match(d2, /第三部分/, '应主动给出第三部分的想法入口');
 assert.match(d2, /图像资源待回填/, '有临时 URL 资源时必须提醒');
 assert.match(d2, /bg-01/, '要点名具体资源');
 assert.ok(!/icon-02/.test(d2), '矢量内嵌资源不该被当成待回填');
-assert.equal(lastLine(d2), '确认后回复「第 2 部分 PASS」');
+assert.equal(lastLine(d2), '当前待确认：第二部分：初始化档案页。确认后回复「第二部分：初始化档案页 PASS」');
 
-// 3. 第三部分交付：不问第四部分想法，末行带分支说明
+// 3. 第三部分交付：不问第四部分想法，末行保留 PASS 提示
 run(`pass --out "${out}" --part profile`);
 const d3 = messageOf(run(`deliver --part chat --file "${w('c.json', { ...writing, built_in_css: '.x{color:red}' })}"`));
 assert.ok(!/对第四部分/.test(d3), '第三部分不应在此询问面板想法');
 assert.match(d3, /可选拓展/);
-assert.equal(lastLine(d3), '确认后回复「第 3 部分 PASS」；PASS 后再告诉我要走哪条路（组装 / 评估 / 变量面板）');
+assert.equal(lastLine(d3), '当前待确认：第三部分：聊天页 CSS 与正则。确认后回复「第三部分：聊天页 CSS 与正则 PASS」');
 
 // 4. 第四部分交付：末行 PASS 提示，且不再有下一部分提问
 run(`pass --out "${out}" --part chat`);
 const d4 = messageOf(run(`deliver --part variables --file "${w('v.json', writing)}"`));
-assert.equal(lastLine(d4), '确认后回复「第 4 部分 PASS」');
+assert.equal(lastLine(d4), '当前待确认：第四部分：变量面板。确认后回复「第四部分：变量面板 PASS」');
 
 fs.rmSync(out, { recursive: true, force: true });
 console.log('delivery tail tests passed');

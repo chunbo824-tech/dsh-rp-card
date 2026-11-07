@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ensureState, readState, writeState, markAwaiting, passPart, failPart,
   detectChanged, assemble, mergeParts, PARTS, PLAYABLE_PARTS, PART_NAMES, lintCard, lintWorldbook,
-  lintRegex, lintStageJson, semanticProfile, loadWbPlan,
+  lintRegex, lintStageJson, semanticProfile, loadWbPlan, flowOrder,
   pickField, pickPanelFlag, toPlatform, PLATFORM_FORMATS, normalizeRegexRules,
 } from './lib/core.js';
 import { runAssetAction } from './lib/asset-actions.js';
@@ -75,7 +75,7 @@ function svc(ctx, name) {
 function parseArgs(raw = '') {
   const text = String(raw ?? '').trim();
   const a = {};
-  const head = text.match(/^(start|status|template|deliver|export|merge|pass|fail|pause|resume|assemble|propose|approve-design)\b/);
+  const head = text.match(/^(start|status|template|deliver|export|merge|pass|fail|pause|resume|assemble|propose|approve-design|format-mode)\b/);
   a.action = head ? head[1] : 'start';
   const re = /--([a-z][a-z0-9-]*)(?:\s+"([^"]*)"|\s+'([^']*)'|\s+(\S+))?/gi;
   let m;
@@ -461,8 +461,8 @@ function deliver(args) {
   if (!state) throw new Error('请先执行 start');
   const part = String(args.part || state.currentPart || 'writing');
   if (!PARTS.includes(part)) throw new Error('part 必须是 writing/profile/chat/variables');
-  const idx = PARTS.indexOf(part);
-  const missing = PARTS.slice(0, idx).filter((p) => state.parts[p].status !== 'pass');
+  const dependencies = state.dependencies || { profile: ['writing'], chat: ['writing', 'profile'], variables: ['writing', 'chat'] };
+  const missing = (dependencies[part] || []).filter((p) => state.parts[p].status !== 'pass');
   if (missing.length) throw new Error(`前置部分必须先取得真实 PASS：${missing.map((p) => PART_NAMES[p]).join('、')}`);
   const design = state.design && state.design.parts && state.design.parts[part];
   if (design && design.status === 'pending') {
@@ -504,6 +504,19 @@ function deliver(args) {
     };
   }
 
+  // 第一部分的 ppt 明确声明成人向时才开启专用选择；非成人卡直接锁定常规顺序。
+  if (part === 'writing') {
+    const adult = /(成人向|R18|18\+|露骨|明确描写)/.test(stage.ppt || '');
+    state.adultContent = adult;
+    if (!adult) {
+      state.formatChoice = 'standard';
+      state.flowOrder = ['writing', 'profile', 'chat', 'variables'];
+      state.dependencies = { profile: ['writing'], chat: ['writing', 'profile'], variables: ['writing', 'chat'] };
+    } else if (!state.formatChoice) {
+      state.formatChoice = 'pending';
+    }
+  }
+
   fs.writeFileSync(path.join(out, STAGE_FILE[part]), JSON.stringify(stage, null, 2), 'utf8');
   fs.writeFileSync(path.join(out, SOURCE_FILE[part]), renderSource(part, stage), 'utf8');
   const files = [SOURCE_FILE[part], STAGE_FILE[part]];
@@ -521,7 +534,16 @@ function deliver(args) {
   try { partExport = exportPart({ part, format: 'v2', out }); } catch (e) { partExport = { error: e.message }; }
   try { merged = mergeParts(out, { by: 'deliver' }); } catch (e) { merged = { error: e.message }; }
 
-  const lines = [`${PART_NAMES[part]}已交付并停止，等待人工平台验证。只有用户明确回复该部分 PASS 才可进入下一步。`];
+  const lines = [`${PART_NAMES[part]}已交付。`];
+  if (part === 'writing' && state.adultContent && state.formatChoice === 'pending') {
+    lines.push('在平台验证第一部分前，请先选择是否采用专用输出格式方案：');
+    lines.push('是否将美化代码内置到第一部分的提示词内，通过规定ai输出格式，用美化代码包裹不同部分的输出内容。而非正则捕捉关键词进行替换？');
+    lines.push('可部分改善ai输出截断问题，缺点，增加token消耗，且ai有输出错误的可能性。');
+    lines.push('回复「是」或「否」。选「是」后，第一部分原稿将转为待修订状态，并与第三部分合并设计；选「否」则可按当前版本验证第一部分。');
+    lines.push('记录选择后再回复「第一部分（写卡正文）PASS」；未作选择前 PASS 会被阻止。');
+  } else {
+    lines.push('当前部分已交付并停止，进入待验证状态。请导入本部分文件到平台测试；只有明确回复该部分 PASS 才能进入下一步。');
+  }
   if (part === 'profile') {
     const st = keyStatus();
     if (st.needSetup) {
@@ -555,17 +577,26 @@ function deliver(args) {
     }
   }
 
-  // 收尾格式：先问下一部分是否有补充，最后一行固定为 PASS 提示。
+  // 收尾提示与 PASS 全部使用部分名称；流程顺序由当前作品状态决定。
   lines.push('');
-  const NEXT_PART_NAMES = { writing: '第二部分（初始化档案页）', profile: '第三部分（聊天页 CSS 与正则）', chat: '', variables: '' };
-  if (part === 'writing' || part === 'profile') {
-    lines.push(`对${NEXT_PART_NAMES[part]}的玩法、视觉或字段有想法，现在直接说；没有就按常规继续。`);
-  } else if (part === 'chat') {
-    lines.push('第三部分是最后一个必做部分，交付后即可玩；第四部分（变量面板）属可选拓展，要不要做等 PASS 之后再定，那时再聊面板想法。');
+  const order = flowOrder(state);
+  const nextPart = order[order.indexOf(part) + 1];
+  if (part === 'writing' && state.adultContent && state.formatChoice === 'pending') {
+    lines.push('在确认第一部分前，请先选择格式方案；选「是」会把第一部分与第三部分合并设计。');
+  } else if (nextPart === 'chat' && state.formatChoice === 'semantic') {
+    lines.push('下一步：第三部分（聊天页样式）。此方案先完成第一部分与第三部分，二者都 PASS 后再设计第二部分。');
+  } else if (part === 'chat' && nextPart === 'variables') {
+    lines.push('第三部分是最后一个必做部分，交付并验证后即为可玩版本；第四部分（变量面板）属可选拓展，等 PASS 后再决定要不要做。');
+  } else if (nextPart) {
+    lines.push(`下一步：${PART_NAMES[nextPart]}。对这一部分有补充想法可直接说；没有就按已确认方案继续。`);
+  } else if (part === 'chat' && state.formatChoice === 'semantic') {
+    lines.push('第一部分与第三部分均已通过；下一步设计第二部分（初始化档案页）。');
+  } else if (part === 'variables') {
+    lines.push('四部分已完成，可以完整组装。');
   } else {
-    lines.push('对面板或整卡还有想改的地方，直接说；没有就走组装。');
+    lines.push('当前工作流没有可自动推进的下一部分，请使用 status 查看状态。');
   }
-  lines.push(`确认后回复「第 ${PART_INDEX[part]} 部分 PASS」${part === 'chat' ? '；PASS 后再告诉我要走哪条路（组装 / 评估 / 变量面板）' : ''}`);
+  lines.push(`当前待确认：${PART_NAMES[part]}。确认后回复「${PART_NAMES[part]} PASS」`);
 
   return { ok: true, part, files, diagnostics, partExport, merged, message: lines.join('\n') };
 }
@@ -577,9 +608,10 @@ function statusText(out) {
   const fresh = readState(out);
   const playableReady = PLAYABLE_PARTS.every((p) => fresh.parts[p].status === 'pass');
   const allPassed = PARTS.every((p) => fresh.parts[p].status === 'pass');
-  const pending = PLAYABLE_PARTS.filter((p) => fresh.parts[p].status !== 'pass');
+  const order = flowOrder(fresh);
+  const pending = order.filter((p) => PLAYABLE_PARTS.includes(p) && fresh.parts[p].status !== 'pass');
   let next;
-  if (!playableReady) next = `${pending[0]}:${fresh.parts[pending[0]].status}`;
+  if (!playableReady) next = `${PART_NAMES[pending[0]]}:${fresh.parts[pending[0]].status}`;
   else if (!allPassed) next = 'branch: assemble | evaluate | variables';
   else next = 'assemble';
   return JSON.stringify({
@@ -599,6 +631,9 @@ function statusText(out) {
     final: fresh.final,
     finalSuperseded: Boolean(fresh.final && fresh.final.supersededAt),
     imageSetup: keyStatus(),
+    adultContent: Boolean(fresh.adultContent),
+    formatChoice: fresh.formatChoice || null,
+    flowOrder: flowOrder(fresh),
     design: fresh.design || { phase: 'idle', parts: {} },
   }, null, 2);
 }
@@ -610,25 +645,27 @@ function statusText(out) {
  */
 function passText(out, part, feedback) {
   const state = passPart(out, part, feedback);
+  const order = flowOrder(state);
+  const nextPart = order[order.indexOf(part) + 1];
   const lines = [`已记录 PASS：${PART_NAMES[part]}（绑定当前文件摘要；之后改动该部分文件，这次 PASS 会失效）`];
-  if (part === 'chat') {
+  const playableReady = PLAYABLE_PARTS.every((p) => state.parts[p].status === 'pass');
+  if (playableReady) {
     lines.push(
-      '',
-      '前三部分已通过，这就是一个可玩版本。请先在平台实际玩几轮：正文包裹、气泡不透明度、正则转换、按钮状态是否都正常。',
-      '确认后可三选一：',
-      '1. 完整组装 —— 生成 card.json（可玩版本，不含变量面板），到此可以收工；',
-      '2. RP 卡全面评估 —— 先组装，再按评估框架打分；',
-      '3. 进入拓展功能（第四部分 变量面板）—— 继续做可选的面板。',
-      '',
-      '提醒：变量面板的浮动入口与按钮外观属于第三部分 built_in_css。想做面板时，这类样式要在第三部分 CSS 里改，改完第三部分需要重新验证；不要把它们写进面板模板。',
+      '前三部分（写卡正文 / 初始化档案页 / 聊天页）都已通过，这就是可玩版本。请先在平台实际玩几轮，再选择：',
+      '1. 完整组装 —— 生成可玩版本 card.json；',
+      '2. RP 卡全面评估 —— 先组装再打分；',
+      '3. 进入拓展功能（第四部分 变量面板）。',
+      '提醒：变量面板浮动入口和按钮外观属于第三部分样式（built_in_css）；若修改，需重新验证第三部分。',
     );
-  } else if (part === 'profile') {
-    lines.push('下一步：第三部分 聊天页 CSS 与正则。');
+  } else if (nextPart) {
+    lines.push(`下一步：${PART_NAMES[nextPart]}。先询问用户是否有补充，再给出该部分方案并等待审批。`);
+    if (state.formatChoice === 'semantic' && nextPart === 'profile') {
+      lines.push('第一部分与第三部分已通过，现在才进入第二部分（初始化档案页）。');
+    }
   } else if (part === 'variables') {
     lines.push('四部分已完成，可以 assemble 生成完整版（含变量面板）。');
-  } else {
-    lines.push('下一步：第二部分 初始化档案页。');
   }
+  lines.push(`当前部分验证已通过：${PART_NAMES[part]}。`);
   return lines.join('\n');
 }
 
@@ -687,9 +724,53 @@ function approveDesign(args) {
   return `已确认${PART_NAMES[part]}的设计方案，可以开始实现并 deliver。`;
 }
 
+function chooseFormatMode(args) {
+  const out = outDir(args);
+  const state = readState(out);
+  if (!state) throw new Error('请先执行 start');
+  if (!state.adultContent) throw new Error('此选项只用于成人向卡；普通卡按常规顺序进行。');
+  if (state.formatChoice !== 'pending') throw new Error(`格式方案已选择为 ${state.formatChoice}；如需改变，请先重新交付第一部分并重置流程。`);
+  if (state.parts.writing.status !== 'awaiting_user_validation') throw new Error('请在第一部分交付后、PASS 前选择此项。');
+  const mode = String(args.mode || '').toLowerCase();
+  if (!['standard', 'semantic'].includes(mode)) throw new Error('mode 只能是 standard 或 semantic');
+
+  state.formatChoice = mode;
+  if (mode === 'standard') {
+    state.flowOrder = ['writing', 'profile', 'chat', 'variables'];
+    state.dependencies = { profile: ['writing'], chat: ['writing', 'profile'], variables: ['writing', 'chat'] };
+    state.currentPart = 'writing';
+    state.updatedAt = new Date().toISOString();
+    writeState(out, state);
+    return '已选择常规方式。第一部分可以按当前版本到平台验证；PASS 后按常规顺序设计第二部分，再设计第三部分。回复「第一部分（写卡正文）PASS」即可。';
+  }
+
+  state.flowOrder = ['writing', 'chat', 'profile', 'variables'];
+  state.dependencies = { chat: ['writing'], profile: ['writing', 'chat'], variables: ['writing', 'chat', 'profile'] };
+  state.parts.writing.status = 'needs_revision';
+  state.parts.writing.validation = null;
+  state.parts.chat.status = 'not_started';
+  state.parts.chat.validation = null;
+  state.parts.profile.status = 'not_started';
+  state.parts.profile.validation = null;
+  if (!state.design) state.design = { phase: 'idle', parts: {} };
+  state.design.parts.writing = { status: 'pending', file: null, proposedAt: new Date().toISOString(), note: '成人向格式美化：与第三部分合并设计后重写' };
+  state.design.parts.chat = { status: 'pending', file: null, proposedAt: new Date().toISOString(), note: '成人向格式美化：与第一部分合并设计' };
+  state.currentPart = 'writing';
+  state.updatedAt = new Date().toISOString();
+  writeState(out, state);
+  return [
+    '已选择「专用输出格式」。第一部分原交付版需要修订，当前不能 PASS。',
+    '接下来请把第一部分输出协议与第三部分聊天样式作为一组设计：让 AI 用稳定的语义结构包裹正文不同部分，第三部分按这些结构做视觉美化，不再靠正则捕捉剧情关键词来着色替换。',
+    '按既有方案审批流程，分别 propose 并审批 writing 与 chat 的联合设计；两个部分都通过平台验证后，才开始第二部分（初始化档案页）。',
+    '必须向用户说明：可部分改善ai输出截断问题，缺点，增加token消耗，且ai有输出错误的可能性。',
+    '重新设计第一部分前，先读取 docs/1；设计第三部分前读取 docs/3。',
+  ].join('\n');
+}
+
 function action(args) {  const out = outDir(args);
   switch (args.action || 'start') {
     case 'start': return begin(args);
+    case 'format-mode': return chooseFormatMode(args);
     case 'propose': return proposeDesign(args);
     case 'approve-design': return approveDesign(args);
     case 'template': return template(args);
@@ -1033,6 +1114,15 @@ export function apply(ctx) {
         '- 卡内任何字段都不得出现针对 AI 自身的破限话术（开发者模式、DAN 模式、越狱话术、无视之前的指令等）；连否定句也不要写。完整词表见 docs/5 §5.13，CUE014 会报。',
         '- 如果你拒绝生成某段卡片内容：如实告诉用户「当前模型拒绝生成这部分」，并给出两条路——换用不审查的模型，或由用户决定降低尺度；不得偷偷删改、不得假装已经写过。',
         '',
+        '## 成人向卡的输出格式方案（第一部分交付时必须问）',
+        '判定为成人向的卡，在第一部分交付后、PASS 前，必须先让用户做一次选择：是否把美化代码内置到第一部分提示词里——通过规定 AI 输出格式、用结构包裹正文各部分来做美化，而不是靠正则捕捉剧情关键词替换。',
+        '说明文案原样使用：「可部分改善ai输出截断问题，缺点，增加token消耗，且ai有输出错误的可能性。」',
+        '- 用户选「否」→ 执行 `format-mode --mode standard`，按常规顺序（写卡正文 → 初始化档案页 → 聊天页）继续。',
+        '- 用户选「是」→ 执行 `format-mode --mode semantic`：第一部分转为待修订，流程顺序变为 写卡正文 → 聊天页 → 初始化档案页。此时要把第一部分输出协议与第三部分样式当一组设计，分别 `propose` 并审批，都通过平台验证后才做第二部分。',
+        '- 未做选择前 `pass` 会被拒绝；不要替用户默认选。',
+        '- 该选项只对成人向卡启用；普通卡不询问、不调用。',
+        '- 选 semantic 后必须在第三部分先实测平台是否保留 AI 输出的结构标记；若被吞掉或样式命中不了，如实报告并退回常规方案。',
+        '',
         '## 四份规范随插件分发（必须先读）',
         `规范目录：${DOCS_DIR}`,
         `- 第一部分：${DOC.writing}`,
@@ -1158,6 +1248,8 @@ export function apply(ctx) {
         '交付消息里先给文件与验证方式，然后：',
         '1. 主动问一句「对下一部分有没有想法」，给玩家补充的入口——不要等玩家自己想起来提；',
         '2. 最后一行固定写「确认后回复「第 N 部分 PASS」」，后面不再接任何内容。',
+        'PASS 措辞统一用部分名（第一部分：写卡正文 / 第二部分：初始化档案页 / 第三部分：聊天页 CSS 与正则 / 第四部分：变量面板），不要用「第 N 部分」数字，避免顺序调整时产生歧义。',
+        '成人向卡第一部分交付后，先按「成人向卡的输出格式方案」一节让用户选择，再提示 PASS。',
         '第三部分是例外：它是最后一个必做部分，交付时不问第四部分的想法，只说明第四部分属可选拓展；等玩家 PASS 并明确选择「进入拓展功能」后，再问一句「对面板有什么想法或偏好」。',
         '玩家在过程中提出完善方案 → 直接按其方案执行；只给模糊想法 → 先给两三条不同方向的选择，再动手。',
         'deliver 成功会自动产出两份：`part-N-*.v2.json`（只含本部分的导入件，用于单独验证这一部分）与 `card.json`（把当前已交付部分累计组装，每次交付覆盖更新）。平台导入是整卡覆盖：单测某部分导入 part 件，恢复整张卡导入 card.json。',
