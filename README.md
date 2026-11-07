@@ -12,19 +12,19 @@ DeepSeek Harness 插件：把你的一句话想法，做成一张能导入平台
 
 ## 安装
 
-npm：
+**npm（推荐）**：
 
 ```sh
 dsh plugin --profile desktop add dsh-rp-card
 ```
 
-GitHub：
+**GitHub**（想跟最新提交时用）：
 
 ```sh
 dsh plugin --profile desktop add github:chunbo824-tech/dsh-rp-card
 ```
 
-本地检出：
+**本地检出**：
 
 ```sh
 dsh plugin --profile desktop add /绝对路径/dsh-rp-card
