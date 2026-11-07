@@ -59,10 +59,36 @@ assert.ok(!ids(lintStageJson('writing', stage())).some((id) => id.startsWith('WB
 const noLabel = withPlan(stage(), { version: 1, entries: [] });
 assert.ok(ids(noLabel).includes('WB101'));
 
-// 3. WB102 预算超限
+// 3. WB102 预算超限（简单卡：单条 600 / 合计 800）
 const huge = stage();
 huge.wb[2].value = '结'.repeat(WB_BUDGET_TOTAL + 1);
 assert.ok(ids(withPlan(huge, plan)).includes('WB102'));
+
+// 3b. 复杂卡放宽到单条 900 / 合计 1600
+{
+  const makeWb = (residentLen) => Array.from({ length: 24 }, (_, i) => entry(
+    '_or_测试',
+    i === 0 ? '结'.repeat(residentLen) : '测试正文',
+  ));
+  const makePlan = (wb) => ({
+    version: 1,
+    entries: wb.map((_, i) => (i === 0
+      ? { index: 1, 职责: '规则', 激活: '格式标记锚', 载体: 'wb', anchorSource: 'control:END' }
+      : { index: i + 1, 职责: '知识', 激活: '内容锚', 载体: 'wb' })),
+  });
+  const wb800 = makeWb(800);
+  const plan800 = makePlan(wb800);
+  assert.ok(!ids(lintStageJson('writing', stage({ wb: wb800 }), { plan: plan800 })).includes('WB102'),
+    '复杂卡 800 字单条不应报 WB102');
+
+  const wb901 = makeWb(901);
+  assert.ok(ids(lintStageJson('writing', stage({ wb: wb901 }), { plan: makePlan(wb901) })).includes('WB102'),
+    '复杂卡 901 字单条应报 WB102');
+
+  const forced = stage({ wb: wb800, complexity: 'simple' });
+  assert.ok(ids(lintStageJson('writing', forced, { plan: plan800 })).includes('WB102'),
+    '显式 simple 时 800 字应超限');
+}
 
 // 4. WB103 缺锚词证明 / 证明找不到
 const noAnchor = { version: 1, entries: plan.entries.map((e) => (e.index === 2 ? { ...e, anchorSource: '' } : e)) };
