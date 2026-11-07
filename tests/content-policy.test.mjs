@@ -62,4 +62,17 @@ const runtime = base({ ppt: '本卡为成人向虚构作品，按设定推进，
 const d3 = ids(runtime);
 assert.ok(!d3.includes('CUE009') && !d3.includes('CUE011'), '运行时内容规则不应被告警');
 
+// 5. 成人向卡缺玩家代理边界 → CUE013
+assert.ok(d3.includes('CUE013'), '成人向卡没写玩家代理边界应报 CUE013');
+
+// 5b. 写了玩家代理边界就不报
+const withAgency = base({
+  ppt: '本卡为成人向虚构作品，按设定推进。每轮停在玩家可接管的点：NPC 的动作、环境变化、抛给玩家的问题。不得代做玩家的台词、想法、决定、移动与时间跳跃。',
+});
+assert.ok(!ids(withAgency).includes('CUE013'), '写了边界不应报 CUE013');
+
+// 5c. 非成人向卡不触发 CUE013
+const sfw = base({ ppt: '你是温柔的咖啡馆店主，用日常对话推进故事。' });
+assert.ok(!ids(sfw).includes('CUE013'), '非成人向卡不应报 CUE013');
+
 console.log('content policy tests passed');
