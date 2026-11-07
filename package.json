@@ -58,8 +58,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/chunbo824-tech/dsh-rp-card.git",
-    "directory": "."
+    "url": "git+https://github.com/chunbo824-tech/dsh-rp-card.git"
   },
   "homepage": "https://github.com/chunbo824-tech/dsh-rp-card#readme",
   "bugs": {
