@@ -1,5 +1,13 @@
 # 更新记录
 
+## 1.6.1
+
+资料库 MVP 的正式发布（1.6.0 曾因先发布后测试被标记废弃，现以 1.6.1 重新发布，内容相同）。
+
+- 资料库工具 card_library：status / ingest / commit / allocate / propose / approve / write / visual / pause / resume / next-batch / usage。
+- 六个模块：sources（编码判定与四类切分）、records（哈希保护与证据逐字校验）、budget（A/B 两套方案与降级顺序）、mapping（条目→世界书、锚点、阶段前缀）、validate（LIB001–LIB007）、state（阶段、用量、断点）。
+- 规范补充：材料缺失三选项、搜索与抓取计费口径（每次约 0.005 元、失败不计费、只做估算）、先报后做。
+
 ## 1.6.0
 
 资料库 MVP 落地：可导入材料并按两套方案生成世界书条目。
