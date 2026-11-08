@@ -39,4 +39,21 @@ assert.match(idx, /两个硬性停点/, '缺少停点说明');
 // 4. 规范不越界：不写 ppt / 不写页面代码
 assert.match(doc, /资料库不写 `ppt`、不写开场白、不写页面代码/);
 
+// 5. 材料缺失时给三条路，且抓取计费口径准确
+assert.match(doc, /① 你自己上传/, '缺少「自己上传」选项');
+assert.match(doc, /② 我帮你找/, '缺少「我帮你找」选项');
+assert.match(doc, /③ 不做资料库，直接按原创卡做/, '缺少「直接做原创」选项');
+assert.match(doc, /每 1000 次成功请求 5 元/, '缺少单价说明');
+assert.match(doc, /每次约 0\.005 元/, '缺少单次估算');
+assert.match(doc, /搜索返回空结果、抓取拿不到正文、超时、报错，都不计费/, '缺少不计费条件');
+assert.match(doc, /读不到用户账户账单/, '缺少「无法读取账单」的边界说明');
+assert.match(doc, /实际以.*账单为准/, '缺少「以账单为准」提示');
+assert.match(doc, /先报后做/, '缺少报价时机');
+
+// 6. 注入层同步了计费口径
+assert.match(idx, /每 1000 次 5 元/, '注入缺少单价');
+assert.match(idx, /读不到用户账单/, '注入缺少账单边界');
+assert.match(idx, /抓取前先报价/, '注入缺少报价要求');
+assert.match(idx, /给三条路/, '注入缺少三选项');
+
 console.log('library spec tests passed');

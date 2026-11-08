@@ -1,5 +1,14 @@
 # 更新记录
 
+## 1.6.0
+
+资料库 MVP 落地：可导入材料并按两套方案生成世界书条目。
+
+- 新增 lib/library/：sources（编码判定、四类切分、来源登记）、records（条目存储、哈希保护、证据逐字校验）、budget（复杂度、A/B 两套方案、降级顺序）、mapping（条目→世界书、锚点、阶段前缀）、validate（LIB001–LIB007）、state（阶段、深度、确认、暂停恢复、用量记账）。
+- 新增工具 card_library：status / ingest / commit / allocate / propose / approve / write / visual / pause / resume / next-batch / usage。工具不调模型，抽取由 agent 完成。
+- 资料库规范补充：材料缺失三选项、搜索与抓取计费口径（每次约 0.005 元、失败不计费、只做估算）、先报后做、工具动作表。
+- 新增 7 个测试文件（sources / records / budget / mapping / validate / state / tool），注入测试纳入 card_library。
+
 ## 1.5.4
 
 资料库流程（同人 / 改编 / 参考材料）。

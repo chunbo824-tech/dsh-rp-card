@@ -37,7 +37,7 @@ await tick();
 
 assert.deepEqual(
   registered.sort(),
-  ['command:card-build', 'prompt:rp-card-workflow', 'tool:card_build', 'tool:image_asset', 'tool:card_evaluate'].sort(),
+  ['command:card-build', 'prompt:rp-card-workflow', 'tool:card_build', 'tool:image_asset', 'tool:card_evaluate', 'tool:card_library'].sort(),
   `服务就绪后应完成注册，实际：${JSON.stringify(registered)}`,
 );
 console.log('inject registration test passed:', registered.join(', '));

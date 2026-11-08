@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { libraryAction } from './lib/library/tool.js';
 import {
   ensureState, readState, writeState, markAwaiting, passPart, failPart,
   detectChanged, assemble, mergeParts, PARTS, PLAYABLE_PARTS, PART_NAMES, lintCard, lintWorldbook,
@@ -1002,6 +1003,69 @@ export function apply(ctx) {
 
   bindService(ctx, 'tools', (c, tools) => {
     c.effect(() => tools.register({
+      name: 'card_library',
+      description: '同人/改编/参考材料的资料库流程：把用户给的小说、剧本、设定集、游戏文本整理成可回查的资料库，再取舍成世界书条目。动作：status（当前阶段）→ ingest（导入材料并切分）→ commit（写入带原文证据的条目）→ allocate（算两套取舍方案）→ propose（生成方案文档给用户选）→ approve（记录用户选定）→ write（生成世界书条目并校验）→ visual（视觉参考交付）→ pause / resume / next-batch / usage。工具不调模型：切分、校验、存储由它做，抽取由你完成。',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['status', 'ingest', 'commit', 'allocate', 'propose', 'approve', 'write', 'visual', 'pause', 'resume', 'next-batch', 'usage'],
+            description: '要执行的操作',
+          },
+          out: { type: 'string', description: '作品目录；省略＝当前会话工作区' },
+          file: { type: 'string', description: 'ingest 时：材料文件路径（相对作品目录或绝对路径）' },
+          text: { type: 'string', description: 'ingest 时：直接给材料正文（与 file 二选一）' },
+          id: { type: 'string', description: '材料或条目 ID（小写字母/数字/短横线）' },
+          kind: { type: 'string', enum: ['novel', 'screenplay', 'setting-book', 'game-script'], description: 'ingest 时：材料类型' },
+          title: { type: 'string', description: '材料标题' },
+          realm: { type: 'string', enum: ['canon', 'reference', 'fanon', 'unknown'], description: '来源身份' },
+          continuity: { type: 'string', description: '世界线，如 novel-main / anime-2024' },
+          edition: { type: 'string', description: '底本或修订版本' },
+          phase: { type: 'number', description: '材料最早可用阶段；未知省略' },
+          records: { type: 'array', description: 'commit 时：资料条目数组', items: { type: 'object' } },
+          visual: { type: 'array', description: 'visual 时：视觉参考数组', items: { type: 'object' } },
+          scheme: { type: 'string', enum: ['A', 'B'], description: '取舍方案：A 沉浸优先 / B 轻量优先' },
+          startPhase: { type: 'number', description: '开局阶段，默认 0' },
+          complexity: { type: 'string', enum: ['simple', 'complex'], description: '强制预算档；省略则按条目数自动判定' },
+          attempt_id: { type: 'string', description: 'usage 时：本次尝试的唯一 ID' },
+          batch_id: { type: 'string', description: 'usage 时：批次 ID' },
+          usage_kind: { type: 'string', enum: ['measured', 'estimated', 'unavailable'], description: 'usage 时：用量可信度' },
+          calls: { type: 'number', description: 'usage 时：本次调用次数' },
+          input_tokens: { type: 'number', description: 'usage 时：输入 token' },
+          output_tokens: { type: 'number', description: 'usage 时：输出 token' },
+        },
+        required: ['action'],
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            action: { type: 'string' },
+            output: { type: 'string' },
+          },
+          required: ['ok', 'action', 'output'],
+        },
+        render: (_args, value) => [
+          { type: 'text', text: value && typeof value.output === 'string' ? value.output : JSON.stringify(value, null, 2) },
+        ],
+      },
+      execute: async (args) => {
+        const act = args && args.action ? String(args.action) : 'status';
+        try {
+          const sessionCwd = await resolveCwd(pluginCtx);
+          const result = libraryAction({ ...(args || {}), __cwd: sessionCwd || undefined });
+          return { ok: true, action: act, output: String(result) };
+        } catch (e) {
+          return { ok: false, action: act, output: `错误：${e && e.message ? e.message : String(e)}` };
+        }
+      },
+    }));
+  });
+
+  bindService(ctx, 'tools', (c, tools) => {
+    c.effect(() => tools.register({
       name: 'image_asset',
       description: 'RP 卡前端图像资源：先 setup 配置图像能力（缺密钥时会被强制要求），再 plan 决策（位图走 Seedream，透明人物立绘与 SVG 走 Recraft），然后 record_search / approve_search / generate / fetch_svg / validate_svg / embed / set_url。生成后必须提醒用户上传平台换长期 URL 再回填；SVG 直接内嵌 HTML。',
       parameters: {
@@ -1155,6 +1219,11 @@ export function apply(ctx) {
         '- 只出现「同人」二字但没有指向既有作品、也没有材料，或处于否定语境（不要同人、别用原作设定），不触发，按普通原创卡处理。',
         '- 用户说要同人但没给材料：问一句要不要上传；上传则继续；不传则取消该流程，按原创卡做，不再追问，也不留任何资料库文件。',
         '- 对话附件先落盘到工作区的 .card-build/library/sources/ 再读取。',
+        '- 用户想做同人但没材料时，给三条路：① 自己上传（推荐，免费、来源清楚）；② 我帮你找（调用搜索与网页抓取，按次计费）；③ 直接做原创卡。不要只问「传不传」。',
+        '- 费用口径（必须准确）：搜索与抓取都按成功请求次数计费，每 1000 次 5 元，即每次约 0.005 元；只有返回 200 且拿到内容才计费，失败、无结果、超时都不计费；count 不影响单价。你只能统计调用次数做估算，读不到用户账单，所以必须说「估算」，并补一句「实际以账单为准」。',
+        '- 抓取前先报价（先报后做）：说明预计搜索与抓取次数、估算金额，得到同意再执行；超过同意规模就停，先报已花费再问是否继续。',
+        '- 只抓公开设定资料、百科条目、官方介绍，不抓同人全文；每条登记 url、抓取时间与 realm（默认 reference，来源不明记 unknown）。',
+        '- 用户先说不上传、后来又改口要上传时，直接接着走上传分支，不要重复劝。',
         '- 两个硬性停点：条目清单确认、两套取舍方案由用户选定（方案文档走 propose / approve-design）。未确认不写世界书。',
         '- 产出分三份：世界书条目（进第一部分）、视觉参考（独立交付，给第二三部分）、资料库文件（留在 .card-build/library/）。',
         '',
