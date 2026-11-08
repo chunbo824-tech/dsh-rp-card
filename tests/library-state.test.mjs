@@ -102,16 +102,15 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lib-state-'));
 {
   const sum = summarize(dir);
   assert.equal(sum.stage, 'P2');
-  assert.equal(sum.next, '继续下一步');
-  confirm(dir, 'records');
-  assert.equal(summarize(dir).next, '继续下一步');
+  // 前面的用例已确认过条目清单，此时应提示进入方案生成
+  assert.equal(sum.next, '生成两套取舍方案（propose）');
 }
 
 // 12. 阶段枚举与提示文案
 {
   assert.deepEqual(STAGES, ['P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
   setStage(dir, 'P3');
-  assert.equal(summarize(dir).next, '选定取舍方案（A / B）');
+  assert.equal(summarize(dir).next, '选定取舍方案 A 或 B（approve）');
 }
 
 fs.rmSync(dir, { recursive: true, force: true });

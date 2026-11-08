@@ -50,10 +50,29 @@ assert.match(doc, /读不到用户账户账单/, '缺少「无法读取账单」
 assert.match(doc, /实际以.*账单为准/, '缺少「以账单为准」提示');
 assert.match(doc, /先报后做/, '缺少报价时机');
 
+// 5b. 只有材料没有要求时的分支
+assert.match(doc, /## 二十、只有材料、没有要求时/, '缺少「只有材料没有要求」小节');
+assert.match(doc, /不要直接进入第一部分/, '缺少「不直接进第一部分」的约束');
+assert.match(doc, /只做资料库/, '缺少「补充要求→只做资料库」分支');
+assert.match(doc, /停在 P2/, '缺少停在 P2 的边界');
+assert.match(doc, /不许 propose、不许 write、不许写第一部分/, '缺少禁止项');
+assert.match(doc, /自由创作/, '缺少「自由创作」分支');
+
+// 5c. 两个提高质量的写法
+assert.match(doc, /核心规则双写进 ppt/, '缺少双写策略');
+assert.match(doc, /不要用 sleep 轮询子任务/, '缺少禁止 sleep 轮询');
+
+// 5d. 工具动作表补了 confirm / read-unit / dry_run
+assert.match(doc, /\| `read-unit` \|/, '动作表缺 read-unit');
+assert.match(doc, /\| `confirm` \|/, '动作表缺 confirm');
+assert.match(doc, /dry_run/, '动作表缺 dry_run');
+
 // 6. 注入层同步了计费口径
 assert.match(idx, /每 1000 次 5 元/, '注入缺少单价');
 assert.match(idx, /读不到用户账单/, '注入缺少账单边界');
 assert.match(idx, /抓取前先报价/, '注入缺少报价要求');
 assert.match(idx, /给三条路/, '注入缺少三选项');
+assert.match(idx, /只有材料、没有任何玩法要求时/, '注入缺少「只发材料」分支');
+assert.match(idx, /不要 propose/, '注入缺少禁止项');
 
 console.log('library spec tests passed');

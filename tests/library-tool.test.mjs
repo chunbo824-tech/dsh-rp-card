@@ -61,6 +61,18 @@ const run = (args) => libraryAction({ out: dir, ...args });
   assert.ok(fs.existsSync(path.join(dir, '.card-build/library/plan.json')));
 }
 
+// 4b. 未确认条目清单时 propose 被拦
+{
+  assert.throws(() => run({ action: 'propose' }), /条目清单还没确认/);
+}
+
+// 4c. 记录确认
+{
+  const out = run({ action: 'confirm', key: 'records' });
+  assert.match(out, /已记录确认：records/);
+  assert.equal(readLibraryState(dir).confirmed.records, true);
+}
+
 // 5. propose 生成方案文档
 {
   const out = run({ action: 'propose' });
@@ -70,6 +82,11 @@ const run = (args) => libraryAction({ out: dir, ...args });
   assert.match(md, /方案 B · 轻量优先/);
   assert.match(md, /需要你确认/);
   assert.equal(readLibraryState(dir).stage, 'P3');
+}
+
+// 6a. 方案未批准时 write 被拦
+{
+  assert.throws(() => run({ action: 'write', scheme: 'B' }), /取舍方案还没被批准/);
 }
 
 // 6. approve 记录选定方案
@@ -146,6 +163,51 @@ const run = (args) => libraryAction({ out: dir, ...args });
 // 14. 材料文件不存在时报错
 {
   assert.throws(() => run({ action: 'ingest', file: 'nope.txt' }), /不存在/);
+}
+
+// 15. read-unit 取单段全文
+{
+  const out = run({ action: 'read-unit', source_id: 'novel-a', unit_id: 'u000001' });
+  assert.match(out, /novel-a\/u000001/);
+  assert.match(out, /她推门进来/);
+}
+
+// 16. read-unit 缺参数报错
+{
+  assert.throws(() => run({ action: 'read-unit', source_id: 'novel-a' }), /需要 source_id 与 unit_id/);
+}
+
+// 17. commit dry_run 不写盘
+{
+  const before = readLibraryState(dir).stage;
+  const quote = '她推门进来，雨水顺着伞骨往下滴。';
+  const out = run({
+    action: 'commit',
+    dry_run: true,
+    records: [{ id: 'char-dry', kind: 'character', name: '测试人', realm: 'canon', status: 'confirmed', body: '不该被写入', evidence: [{ source_id: 'novel-a', unit_id: 'u000001', quote }] }],
+  });
+  assert.match(out, /dry_run/);
+  assert.ok(!fs.existsSync(path.join(dir, '.card-build/library/records/char-dry.md')));
+  assert.equal(readLibraryState(dir).stage, before);
+}
+
+// 18. write 输出解释文件结构
+{
+  const out = run({ action: 'write', scheme: 'B', startPhase: 0 });
+  assert.match(out, /文件结构/);
+  assert.match(out, /entries/);
+  assert.match(out, /前 3 条样例/);
+}
+
+// 19. propose 在已有记录时也要先确认（换新目录验证）
+{
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'lib-tool2-'));
+  fs.writeFileSync(path.join(dir2, 'n.txt'), ['第一章 A', '甲'.repeat(600), '第二章 B', '乙'.repeat(600)].join('\n'), 'utf8');
+  libraryAction({ out: dir2, action: 'ingest', file: 'n.txt', id: 's1', kind: 'novel' });
+  const q = '甲'.repeat(10);
+  libraryAction({ out: dir2, action: 'commit', records: [{ id: 'c1', kind: 'character', name: '甲', realm: 'canon', status: 'confirmed', body: 'x', evidence: [{ source_id: 's1', unit_id: 'u000001', quote: q }] }] });
+  assert.throws(() => libraryAction({ out: dir2, action: 'visual', visual: [] }), /世界书还没写入/);
+  fs.rmSync(dir2, { recursive: true, force: true });
 }
 
 fs.rmSync(dir, { recursive: true, force: true });
