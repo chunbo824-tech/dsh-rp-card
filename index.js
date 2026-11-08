@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ensureState, readState, writeState, markAwaiting, passPart, failPart,
   detectChanged, assemble, mergeParts, PARTS, PLAYABLE_PARTS, PART_NAMES, lintCard, lintWorldbook,
-  lintRegex, lintStageJson, semanticProfile, loadWbPlan, flowOrder,
+  lintRegex, lintStageJson, semanticProfile, loadWbPlan, flowOrder, lintRoutingConflict,
   pickField, pickPanelFlag, toPlatform, PLATFORM_FORMATS, normalizeRegexRules,
 } from './lib/core.js';
 import { runAssetAction } from './lib/asset-actions.js';
@@ -480,6 +480,13 @@ function deliver(args) {
   const stage = normalizeStage(part, parsed);
   const wbPlan = part === 'writing' ? loadWbPlan(out) : null;
   const diagnostics = [...lintStageJson(part, stage, { plan: wbPlan }), ...ownCheck(part, stage)];
+  // 第三部分：拿第一部分的输出模板对照正则，检查路线冲突与空转
+  if (part === 'chat') {
+    try {
+      const writingStage = JSON.parse(fs.readFileSync(path.join(out, STAGE_FILE.writing), 'utf8'));
+      diagnostics.push(...lintRoutingConflict(writingStage, stage));
+    } catch { /* 第一部分尚未交付时跳过 */ }
+  }
   const errors = diagnostics.filter((d) => d.severity === 'error');
 
   fs.mkdirSync(out, { recursive: true });
@@ -1142,6 +1149,17 @@ export function apply(ctx) {
         '- 类型由你按主题自行判定：' + CARD_TYPES.join(' / ') + '。',
         `- 目标平台固定为 ${DEFAULT_PLATFORM}，不要再询问；平台未验证项如实标注。`,
         '- 卡名由你在第一部分按主题命名，不必先问用户。',
+        '',
+        '## 教学模式（默认关闭）',
+        '默认按正常节奏干活，不讲解原理。',
+        '- 当用户说「我想学」「讲一下原理」「为什么这么做」「教我」时，开启教学模式：每一步多做三件事——这步在干什么、为什么这么做、换个做法会怎样；不改变实现，只增加解释。',
+        '- 教学模式下，遇到报错要讲清「原因 + 两条可行路线」，并说明推荐哪条。',
+        '- 当用户说「别讲了」「直接做」时，立刻关掉教学模式。',
+        '- 教学模式不写进卡片字段，只影响你怎么说话。',
+        '',
+        '## 报错要解释，不要只报错',
+        '任何校验失败或技术冲突，都不能只丢一句「不对」。必须说清三件事：问题是什么、为什么会这样、两条可行路线分别怎么做；最后给出推荐。',
+        '最常见的一类冲突：提示词里让 AI 直接输出 HTML 标签（模板派）同时又配了正则替换（正则派）。这两条路的假设相反，同时用会出现「正则匹配不到、CSS 也选不中」；要主动指出并让用户二选一。',
         '',
         '## 说话方式（面向电脑白痴）',
         '用通俗、直接、不用术语的中文。不要要求用户理解 JSON、Schema、CSS、正则、字段名或插件内部结构；必须提及时先用一句人话解释。',
