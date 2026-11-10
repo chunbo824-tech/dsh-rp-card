@@ -1,5 +1,46 @@
 # 更新记录
 
+## 1.7.0
+
+新增「上传自制卡：评估与优化」流程（`card_review` 工具 / `/card-review` 命令），用于用户把自己做的卡（平台导出的 JSON）交进来，检查逻辑与体量并产出优化版。不改动四部分创作流程。
+
+- 收录 fengyue.ai 现行导出件的第三套键名，避免读入时把主提示词/档案页/正则读成空、把设置键报成未知字段：`app_name→title`、`pre_pt→ppt`、`pretxt→ptx`、`descr→desc`、`rrep→rgx_rep`、`ost→opening_statement`（`posttxt`、`world_bk`、`ai_variable_json` 原本已支持）。
+- 平台设置键映射新增：`anonymous→ianon`、`cov_tn→cover_tiny`、`banned_words→ban_wd`、`bg_music→msc`、`sc_cmds→shortcut_commands`、`sqaa→suggest_q_after`、`cvr_url→cvr`、`avail_not_pub→avail_np`、`cate→category`、`dcm→no_css_mod`、`modp→mod_pm`、`bg_mobile→mobile_bg`、`language→lc`、`ext→extend`。
+- 已知但语义待确认、暂不映射：`ps_type`、`vp_mode`、`ui_flag`、`image_bk`、`abs_txt`、`tags`（不再报未知字段，导出时原样保留）。
+- 新增 `tests/field-aliases.test.mjs`：用现行导出件的最小样本验证读入归一与格式识别。
+
+- 新增 `lib/review.js`：读入（新版 v2 / 旧版键名 / 包装与数组 / BOM）、结构-体量-逻辑三层审计、优化方案、前后对比、v2 导出。
+- 审计编号：RV001–RV008、RV234（结构）、RV101–RV116（体量）、RV201–RV210、RV227–RV233（逻辑）；同时复用 WB / RGX / CSS / CUE / X1 / ENV 既有校验，正则锚点缺失合并成一条，避免刷屏。
+- 新增通用判断：改触发词前判断文本是否需常驻（RV202 给出判断提示）、拆长条目前确认运行期是否只用一部分（RV231）、去重前区分互斥条件下的必要重复（RV230）。plan.md 增加「全作品评估」与「改写前的三个判断」。
+- 大世界卡预算：世界书 ≥80 条或显式 `complexity: large/world/big` 时，常驻预算放宽到 6000–8000 字、单条 1200；简单卡 800/600、复杂卡 1600/900 不变。
+- 上传卡兼容性：后缀是「玩家输入定义型」（含【玩家输入】/PREFIX/POSTFIX 且无【时间地点】）时，不套用 RV005/RV006；世界书已有 IDLE/CONTINUE/END 或状态机判定时，不再报 RV205 空承诺。避免把四部分模板强加到原卡玩法上。
+- 新增结构性问题：触发词符号不完整/含空白/重复（RV228），世界书正文写运行期识别/防守性命令（RV229，如「玩家输入中出现【X】标记→本轮视为请求」），同一 key 父子触发词冗余（RV232，依据 docs/1 模块四「子集关系天然覆盖」与「最短原则」），世界书与 desc/变量面板层重复（RV233）。
+- 第二部分跨部分边界：明文规定平台聊天原生输入/发送按钮/消息气泡归第三部分；desc 不得新建聊天输入替代原生输入，终端输入栏只能由第三部分改原生样式。新增 `OWN002`：desc 同时出现输入框和发送/聊天/终端语义时提示越界（warning，不阻断初始化表单）。
+- 图像交付清单：`image_asset` 的 `generate` / `fetch_svg` / `record_search` 支持 `name` 与 `placement`；第二部分交付时列出每张图的图片名、本地绝对路径、HTML 位置/作用，并用代码块给出可复制的图片名清单与「图片名: 平台URL」填写模板，不再只报资源 id。
+- 跨层重复：新增 RV237，比对 `ppt` / `ptx` / `post_text` 的长段与近似段，只给候选、不自动删；同时生成待确认问题，先区分“靠近玩家输入的必要重复”与纯复制，确认前不 apply。
+- 体量公式：改为平台当前轮注入 = `ppt + ptx + 本次玩家输入 + post_text + 触发世界书 + 变量提示词`；历史 = 用户设置的历史消息条数（玩家输入、AI 输出各算一条），默认玩家 100 字、AI 1000 字，可用 `player_input_chars` / `ai_output_chars` 覆盖；不再把 ptx/post 按历史轮数重复。RV102 提醒线调整为 1500 字。
+- 开场白规则：开场白为空不再视为错误。`desc` 静态检测到复制/剪贴板能力时视为前端已内置开场指令并静默；未检测到或只做部分检查时，`audit` 返回 `questions`，先问用户确认，不直接补开场白。
+- 格式锚校验：RV228 先比对 `ppt/ptx/post_text/ai_v_prompt` 的输出格式锚，`字段：值` / `** 字段 **：枚举值` 这类精准触发不再因空格/冒号误报；只有格式不一致或找不到锚才提示。
+- 格式/状态判断只给思路：插件不预设字段名、不自动推断状态。RV228 只查括号/空词/重复等结构错误；空格、冒号、标题符号是否合法由 AI 对照卡片自己的输出字段判断。正文范围与触发词范围是否匹配、格式触发词与条目内容是否一致，也由 AI 按卡片规定判断。
+- 世界书内部重复：新增 RV236，把 3 条以上重复的长段聚合成一条提示并估算可省字数；结构化原子记录不再逐条触发 RV233 面板重复。
+- RV210 调整：只对高置信嵌套量词报 warning；「换行 + 空白类」的常见任务面板写法（如 `(?:\r?\n[ \t]*)+`）豁免，低置信项只给 info，避免把必要功能的正则误判成灾难性回溯。
+- 校正误报：RV201 改为 info，并写明平台不直接扫描条目正文，只有 AI 复述后下一轮可能间接命中；移除 RV114「世界书条目过多」——框架没有条数上限，大世界卡本来就允许 ≥80 条；desc 是平台 iframe 前端，`<script>` / 内联事件 / 外链图片不再报 ENV（localStorage 仍报）。
+- 旧版平台设置键登记与映射：`pchats→ps_chats`、`tg→labels`、`scmd→shortcut_commands`、`bgmusic→msc`、`is_anon→ianon`、`visible_platform→plat_vis`、`summary→sum_info`、`cg_bk→cgb`、`language→lc`、`sug_q_aa→suggest_q_after`、`bw→ban_wd`、`def_sent_cnt→def_msg_cnt`、`cover_img→cvr`、`sugg_ques→sq`；audit 不再把它们当未知字段，v2 导出保留，source 导出原样保留。`type / cat / tmp_val / ctny / v_mode` 先登记为已知键，映射待平台语义确认。
+- 未知字段保真：v2 导出除了 40 个标准键，还会把原导出件里未映射/不认识的键原样追加到文件末尾，不再静默丢弃；source 导出本来就保留全部键。平台是否接受额外键需导入实测。
+- 体量口径：输入 = 固定开销 + 前后置词 × 记忆轮数 + 常驻世界书 + 变量提示词；输出按后置词模板最低量单列；按字符数折算成内部相对单位，只用于同一张卡前后对比。**不宣称平台 token 或积分消耗**：平台按积分计费，我们无法估算，报告只给相对变化。变量面板模板按面板皮肤处理，不计入体量。
+- 阶段闸门：ingest → audit → plan → apply → export；apply 重新审计，新增必修问题默认拒收（用户明确接受才可用 `force`）；源卡与优化版都有摘要校验。
+- 连续 apply 基于当前优化版合并，不会丢掉上一次改写；补丁里 wb / rgx_rep 类型不对直接拒绝，不静默清空。
+- 重新 ingest / audit 会删掉下游旧文件（方案、改写版、对比、导出件），避免误导入上一张卡的结果。
+- 工具省略 `out` 时固定落会话工作区；相对 `file` 按作品目录解析。命令 `card-review` 的 `--memory-rounds` / `--memory-setting` / `--ai-summary` 与工具参数等价（`-` 与 `_` 都认）。
+- 导出保留原卡已知平台键（labels/msc/def_msg_cnt/bg_img 等）；旧版/非 v2 源改为沿用原字段名与结构（`card.optimized.source.json`），cover / tag_list / 语言 / 界面设置不再因为转 v2 丢失；只有 v2 源生成 40 键 `card.optimized.v2.json`。
+- 未登记别名常态化：`ingest` 把未识别键写到 `<out>/.card-build/alias-suggestions.json`（gitignore、不进包），附 `suggested` 规范字段；确认后补 `FIELD_ALIASES` + 测试再发版框架，候选表本身不随版本发布。
+- 字段别名新增旧版键名：`nm` / `potx` / `post_tx` / `greet_st` / `world_book` / `inner_css`（`pre_text`、`ai_v_template`、`back_img` 原本已支持）；手机背景补 `bgmob`。真实卡的后缀字段叫 `potx` 时，现在会正常读成 `post_text`，不再误报空后缀、也不会在导出时丢掉这段正文。
+- 第三部分登记补充（2026-11-10 实测）：新增底部交互区总容器 `#customized-ai-input-container`；分页 `#customized-pagination-container` / `#customized-pagination` / `nav[data-slot="pagination"]`、页码外层 `[data-slot="pagination-item"]`、当前页 `aria-current` / `data-active`（必须 scope）；工具栏整行容器 `#ai-mod-button2`（不替代 `#ai-mod-button`）与 scoped `data-slot` 批量锚点；模型选择器 `#customized-model-selector` / `#ai-model-selector` 与 scoped `[data-slot="popover-trigger"]`；补充发送按钮/控件栏结构说明，作为定位与 padding 陷阱依据，不改变尺寸禁令。
+- 第三部分视觉触发：新增 9.2 与系统提示词边界——从零/同人/导入 JSON 逐步推进不确认美化范围；只有导入 JSON 且一上来只说美化才问一次范围。背景分“图像 / 跟随平台（无背景）”；固定深色/浅色气泡按 8.9.2 同步文字与平台控件；有背景图且固定气泡时问一次“不透明度 0 是否透出背景”；平台控件由 AI 自主判断；原卡规则检查仅导入 JSON；交付时输出视觉改动说明而非提问。
+- 第三部分规范补充：固定尺寸按钮的 padding 陷阱与内容区计算、覆盖 `:focus/:hover/:disabled` 前先查原卡同元素规则、背景声明被 Tailwind/`bg-clip-padding` 覆盖时的 inset shadow 实底填充例外、图像背景上的控件对比保底、控件分层命名（8.10）、平台图标 mask 自绘例外（8.11）、改样式前置流程（9.1：版本核对、差异说明、截图验收）；8.7 白名单补 `border-color / outline-color`、`-webkit-text-fill-color`，并加入 `!important` 三条件判据；新增 8.9.2：固定深色/浅色气泡背景时，文字与平台原生控件配色必须同向适配，且与 8.6 滑块互斥时要写明。
+- 新增 `docs/supplements/上传卡评估.md`，系统提示词新增上传卡章节与硬规则。
+- 测试：新增 `tests/review-audit.test.mjs`、`tests/review-flow.test.mjs`、`tests/review-spec.test.mjs`；`tests/inject.test.mjs` 同步新注册项。全部 33 个测试文件。
+
 ## 1.6.3
 
 修复 1.6.0–1.6.2 的打包缺陷：`files` 只写了 `lib/*.js`，导致 `lib/library/` 没有进包。

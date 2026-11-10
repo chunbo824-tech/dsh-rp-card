@@ -12,6 +12,7 @@ import { runAssetAction } from './lib/asset-actions.js';
 import { keyStatus } from './lib/image-setup.js';
 import { loadManifest } from './lib/assets.js';
 import { evaluateAction } from './lib/evaluate.js';
+import { reviewAction, REVIEW_ACTIONS } from './lib/review.js';
 import { resolveVisionDelegate } from './lib/vision.js';
 
 // 视觉检查委托目标：环境变量 > profile 的 subagent 允许列表首个 DeepSeek 项 > 兜底。
@@ -57,7 +58,14 @@ function pendingAssetUploads(out) {
     .filter((a) => a && a.type !== 'icon_svg' && a.type !== 'decoration_svg')
     .filter((a) => a.mime !== 'image/svg+xml')
     .filter((a) => a.remoteUrlSource !== 'platform')
-    .map((a) => a.id);
+    .map((a) => ({
+      id: a.id,
+      name: a.name || a.purpose || a.id,
+      localFile: a.localFile || '',
+      purpose: a.purpose || '',
+      placement: a.placement || '',
+      type: a.type || '',
+    }));
 }
 
 const STRING_FIELDS = [
@@ -86,6 +94,28 @@ function parseArgs(raw = '') {
     a[key] = value === undefined ? true : value;
   }
   if (!a.brief && a.action === 'start' && !head && text && !text.startsWith('--')) a.brief = text;
+  return a;
+}
+
+/** 上传卡流程的命令行解析：动作少，参数与卡片审计同名；`-` 与 `_` 等价。 */
+function parseReviewArgs(raw = '') {
+  const text = String(raw ?? '').trim();
+  const a = {};
+  const head = text.match(/^(status|ingest|audit|plan|apply|export)\b/);
+  a.action = head ? head[1] : 'status';
+  const re = /--([a-z][a-z0-9_-]*)(?:\s+"([^"]*)"|\s+'([^']*)'|\s+(\S+))?/gi;
+  let m;
+  while ((m = re.exec(text))) {
+    const key = m[1].toLowerCase().replace(/-/g, '_');
+    const value = m[2] ?? m[3] ?? m[4];
+    a[key] = value === undefined ? true : value;
+  }
+  if (a.memory_rounds !== undefined) a.memory_rounds = Number(a.memory_rounds);
+  if (a.memory_setting !== undefined) a.memory_setting = Number(a.memory_setting);
+  if (a.force === 'true' || a.force === true) a.force = true;
+  else if (a.force === 'false') a.force = false;
+  if (a.ai_summary === 'true') a.ai_summary = true;
+  else if (a.ai_summary === 'false') a.ai_summary = false;
   return a;
 }
 
@@ -179,6 +209,15 @@ function ownCheck(part, s) {
     });
   } else if (part === 'profile') {
     if (!s.desc.trim()) err('desc（初始化 HTML）不能为空');
+    const hasInput = /<(?:input|textarea)\b/i.test(s.desc);
+    const hasChatSend = /(?:发送|\bsend\b|聊天|chat|终端|命令行|terminal)/i.test(s.desc);
+    if (hasInput && hasChatSend) {
+      d.push({
+        id: 'OWN002',
+        severity: 'warning',
+        message: 'desc 里同时出现输入框和发送/聊天/终端语义：这只会是 iframe 页面内控件，不能替代平台聊天原生输入；平台原生输入属于第三部分。若这里是初始化表单（如姓名/年龄）可忽略；若是聊天输入/终端发送，请删掉，改到第三部分 built_in_css 调原生输入样式。',
+      });
+    }
   } else if (part === 'chat') {
     if (!s.built_in_css.trim() && !s.rgx_rep.length) err('built_in_css 与 rgx_rep 至少一项非空');
   } else if (part === 'variables') {
@@ -321,6 +360,7 @@ function renderRequirementAnalysis(state) {
     '|  | writing / profile / chat / variables | 是/否 |  |',
     '',
     '归类规则：凡涉及抽取、随机、校验、防矛盾、前端交互、按钮、面板，一律归 profile 或 variables，不得写入 writing。',
+    '边界规则：平台聊天原生输入/发送按钮/消息气泡 → chat；初始化页自身控件 → profile。profile 不得在 desc 内新建聊天输入替代原生输入；若是“终端风格输入栏”，只在 chat 改原生样式，profile 只做展示或复制。',
     '',
     '## 4. 跨部分依赖',
     '- （例：方案 A 的抽取池要被方案 B 的面板复用，写明来源与读取方式）',
@@ -559,6 +599,9 @@ function deliver(args) {
     } else if (st.pureCode) {
       lines.push('图像能力：用户已选择不接入图像模型，本次前端为纯代码实现（无图像资产）。');
     }
+    if ((state.issues || []).some((i) => i.id === 'OWN002')) {
+      lines.push('注意：desc 里同时出现输入框和发送/聊天/终端语义。页面内输入不会连接平台聊天；若这是聊天输入/终端发送，请删除并改到第三部分 built_in_css 调原生输入样式，避免平台验收出现双输入栏。');
+    }
   }
   if (partExport && partExport.file) {
     lines.push(`可导入件（仅本部分）：${partExport.file} —— 只验证本部分效果时导入它；其它字段是空占位，会覆盖平台上的同名卡。`);
@@ -580,8 +623,26 @@ function deliver(args) {
   if (part === 'profile') {
     const pending = pendingAssetUploads(out);
     if (pending.length) {
-      lines.push(`图像资源待回填：${pending.length} 项仍在使用供应商临时 URL（${pending.slice(0, 6).join('、')}${pending.length > 6 ? ' 等' : ''}）。`);
-      lines.push('请先在本卡详情页上传这些图片，拿到平台长期 URL 后交回 agent 调 `image_asset set_url` 回填，再 `embed` 重新生成 HTML；否则导入平台后图片会失效。');
+      lines.push(`图像资源待回填：${pending.length} 项仍在使用供应商临时 URL。请按下面清单上传，不要漏图。`);
+      lines.push('');
+      lines.push('| 图片名 | 本地文件 | 在 HTML 里的位置/作用 |');
+      lines.push('| --- | --- | --- |');
+      for (const a of pending) {
+        const local = a.localFile ? path.resolve(out, a.localFile) : '未记录';
+        const role = a.placement || a.purpose || '未记录';
+        lines.push(`| ${a.name} | ${local} | ${role} |`);
+      }
+      lines.push('');
+      lines.push('上传后，把平台返回的 URL 填到对应图片名后面，整段发回给 agent：');
+      lines.push('```text');
+      for (const a of pending) lines.push(`${a.name}: `);
+      lines.push('```');
+      lines.push('');
+      lines.push('待复制的图片名清单：');
+      lines.push('```text');
+      for (const a of pending) lines.push(a.name);
+      lines.push('```');
+      lines.push('把 URL 清单交回后，agent 会逐个调用 `image_asset set_url` 回填，再 `embed` 重新生成 HTML；否则导入平台后图片会失效。');
     }
   }
 
@@ -927,6 +988,26 @@ export function apply(ctx) {
 
   bindService(ctx, 'commands', (c, commands) => {
     c.effect(() => commands.register({
+      name: 'card-review',
+      description: '评估并优化用户上传的自制 RP 卡（逻辑与体量）',
+      input: { hint: 'status|ingest --file <卡片 JSON>|audit|plan|apply --file <补丁 JSON>|export [--out <dir>] [--memory-rounds N] [--force]' },
+      handler: ({ rawInput }) => {
+        try {
+          const args = parseReviewArgs(rawInput);
+          const cwd = resolveCwdSync(pluginCtx);
+          if (cwd && !args.out) args.__cwd = cwd;
+          const out = args.out ? path.resolve(String(args.out)) : path.resolve(String(args.__cwd || process.cwd()));
+          const result = reviewAction(args, out);
+          return { kind: 'success', text: JSON.stringify(result, null, 2) };
+        } catch (e) {
+          return { kind: 'error', text: e && e.message ? e.message : String(e) };
+        }
+      },
+    }));
+  });
+
+  bindService(ctx, 'commands', (c, commands) => {
+    c.effect(() => commands.register({
       name: 'card-build',
       description: '创建、恢复、验证并组装四阶段 RP 卡（语义名 card.build）',
       input: { hint: 'start [--design clear|brainstorm]|propose|approve-design|status|template|deliver|export|merge|pass|fail|pause|resume|assemble [--out <dir>]' },
@@ -1003,6 +1084,53 @@ export function apply(ctx) {
 
   bindService(ctx, 'tools', (c, tools) => {
     c.effect(() => tools.register({
+      name: 'card_review',
+      description: '用户上传自制 RP 卡（平台导出的 JSON，含旧版键名）时，评估逻辑与体量并生成优化版：status → ingest（读卡）→ audit（结构/体量/逻辑审计）→ plan（优化方案，先给用户看）→ apply（用户确认后写入改写版）→ export（产出可导入的 v2 文件）。不要走 card_build 四部分流程；工具不调模型，改写由 agent 完成。体量是内部相对量，不宣称平台 token 或积分消耗。',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: REVIEW_ACTIONS, description: '动作：status / ingest / audit / plan / apply / export' },
+          out: { type: 'string', description: '作品目录；省略＝当前会话工作区' },
+          file: { type: 'string', description: 'ingest/apply：卡片 JSON 或改写补丁的文件路径；apply 只放改动字段也可以' },
+          text: { type: 'string', description: 'ingest/apply：直接给 JSON 文本（与 file 二选一）' },
+          memory_rounds: { type: 'number', description: '平台实际历史消息条数（玩家输入与 AI 输出各算一条）；省略时按 memory_setting 或 5 条估算' },
+          memory_setting: { type: 'number', description: '平台历史消息条数设置值；不再折算成一对' },
+          ai_summary: { type: 'boolean', description: '是否开启 AI 总结（开启时历史固定按 1 条计）' },
+          player_input_chars: { type: 'number', description: '本次玩家输入的字符数，默认 100；用于当前轮体量估算' },
+          ai_output_chars: { type: 'number', description: '历史中平均每次 AI 输出的字符数，默认 1000；用于历史体量估算' },
+          force: { type: 'boolean', description: 'apply 时强制接受新增的必修问题（默认拒收）；只有用户明确同意才用' },
+        },
+        required: ['action'],
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: { ok: { type: 'boolean' }, action: { type: 'string' }, output: { type: 'string' } },
+          required: ['ok', 'action', 'output'],
+        },
+        render: (_args, value) => [
+          { type: 'text', text: value && typeof value.output === 'string' ? value.output : JSON.stringify(value, null, 2) },
+        ],
+      },
+      execute: async (args) => {
+        const act = args && args.action ? String(args.action) : 'status';
+        try {
+          const sessionCwd = await resolveCwd(pluginCtx);
+          // 上传卡：省略 out 时固定落在会话工作区；不要按 file 反推，否则相对路径与外部文件会把状态写散。
+          const out = args && args.out
+            ? path.resolve(String(args.out))
+            : path.resolve(String(sessionCwd || process.cwd()));
+          const result = reviewAction({ ...(args || {}), __cwd: sessionCwd || undefined }, out);
+          return { ok: true, action: act, output: JSON.stringify(result, null, 2) };
+        } catch (e) {
+          return { ok: false, action: act, output: `错误：${e && e.message ? e.message : String(e)}` };
+        }
+      },
+    }));
+  });
+
+  bindService(ctx, 'tools', (c, tools) => {
+    c.effect(() => tools.register({
       name: 'card_library',
       description: '同人/改编/参考材料的资料库流程：把用户给的小说、剧本、设定集、游戏文本整理成可回查的资料库，再取舍成世界书条目。动作：status（当前阶段）→ ingest（导入材料并切分）→ commit（写入带原文证据的条目）→ allocate（算两套取舍方案）→ propose（生成方案文档给用户选）→ approve（记录用户选定）→ write（生成世界书条目并校验）→ visual（视觉参考交付）→ pause / resume / next-batch / usage。工具不调模型：切分、校验、存储由它做，抽取由你完成。',
       parameters: {
@@ -1067,7 +1195,7 @@ export function apply(ctx) {
   bindService(ctx, 'tools', (c, tools) => {
     c.effect(() => tools.register({
       name: 'image_asset',
-      description: 'RP 卡前端图像资源：先 setup 配置图像能力（缺密钥时会被强制要求），再 plan 决策（位图走 Seedream，透明人物立绘与 SVG 走 Recraft），然后 record_search / approve_search / generate / fetch_svg / validate_svg / embed / set_url。生成后必须提醒用户上传平台换长期 URL 再回填；SVG 直接内嵌 HTML。',
+      description: 'RP 卡前端图像资源：先 setup 配置图像能力（缺密钥时会被强制要求），再 plan 决策（位图走 Seedream，透明人物立绘与 SVG 走 Recraft），然后 record_search / approve_search / generate / fetch_svg / validate_svg / embed / set_url。调用 generate/fetch_svg 时填 name 与 placement，交付时会生成玩家可执行的本地路径/用途/上传清单；生成后必须提醒用户上传平台换长期 URL 再回填；SVG 直接内嵌 HTML。',
       parameters: {
         type: 'object',
         properties: {
@@ -1080,6 +1208,8 @@ export function apply(ctx) {
           asset_type: { type: 'string', enum: ['character_image', 'background_image', 'icon_svg', 'decoration_svg'] },
           transparent: { type: 'boolean', description: '是否需要透明背景。仅 character_image 可用：true 时走 fetch_svg（Recraft 矢量），false/省略时走 generate（Seedream 位图）' },
           purpose: { type: 'string', description: '资源在页面中的用途' },
+          name: { type: 'string', description: '给玩家看的图片名（上传清单用）；不填则用 purpose/id 兜底' },
+          placement: { type: 'string', description: '由 agent 填写：这张图在 HTML 里的具体位置与作用（区块/选择器/图层/交互用途）' },
           prompt: { type: 'string', description: '图像提示词（由 image-prompt-designer 产出）' },
           size: { type: 'string', description: '尺寸，默认 1024x1024' },
           asset_id: { type: 'string', description: '资源 id；省略则自动编号' },
@@ -1118,7 +1248,7 @@ export function apply(ctx) {
   bindService(ctx, 'tools', (c, tools) => {
     c.effect(() => tools.register({
       name: 'card_evaluate',
-      description: '四部分全部 PASS 且 assemble 之后，按角色卡评估框架打分：audit 只算硬指标（token、前后置词放大倍数、世界书分布、渲染层、自触发碰撞、HTML 环境违规）；submit 接收档位与原文引用，机械折算总分、等级并写报告。仅在用户同意后使用，不改动作品。',
+      description: '四部分全部 PASS 且 assemble 之后，按角色卡评估框架打分：audit 只算硬指标（体量相对量、历史消息条数、世界书分布、渲染层、自触发碰撞、HTML 环境违规）；submit 接收档位与原文引用，机械折算总分、等级并写报告。仅在用户同意后使用，不改动作品。体量是内部相对量，不宣称平台 token 或积分消耗。',
       parameters: {
         type: 'object',
         properties: {
@@ -1129,8 +1259,8 @@ export function apply(ctx) {
           evidence: { type: 'object', description: '每个已评维度一句原文引用；N/A 维度填理由＋引用（缺失会拒绝评分）' },
           na: { type: 'array', items: { type: 'string' }, description: '判 N/A 的维度，仅限 S2/S5/S6/S7/S8/M5/X1/X2/X3' },
           preset: { type: 'string', enum: ['balanced', 'plot', 'character', 'gameplay', 'ai_summary'], description: '权重预设，默认 balanced' },
-          memory_rounds: { type: 'number', description: '实际加载轮数，用于算前后置词放大倍数' },
-          memory_setting: { type: 'number', description: '平台记忆长度设置值；未给轮数时按 ceil(设置/2) 折算' },
+          memory_rounds: { type: 'number', description: '平台实际历史消息条数（玩家输入与 AI 输出各算一条）' },
+          memory_setting: { type: 'number', description: '平台历史消息条数设置值；不再折算成一对' },
           ai_summary: { type: 'boolean', description: '是否开启 AI 总结（开启时历史固定 1 轮）' },
           title: { type: 'string', description: '报告中的作品名；省略取 card.json 的 name' },
           strengths: { type: 'string', description: '做得好的三点（附原文引用）' },
@@ -1204,7 +1334,7 @@ export function apply(ctx) {
         `- 补充材料（按需）：${path.join(DOCS_DIR, 'supplements')}`,
         '写每一部分前，先读对应文件（可只读相关章节）；规范不在用户工作区，路径就是上面这些，不要按文件名去工作区里找。',
         '判定为成人向的卡：写第一部分前必须先读「成人向补充」。非成人向的卡不要读它。',
-        '补充材料只在用户提出相关要求时读（卡跑起来没内容、点名特定题材原型、要求审卡），不要每张卡都读。',
+        '补充材料只在用户提出相关要求时读（卡跑起来没内容、点名特定题材原型、要求审卡、上传自制卡做评估），不要每张卡都读。',
         '数值系统属高级选项：只有卡含战斗、升级、成人向累积这类跨轮事件时才考虑；启用前必须先告诉玩家「优点：尺度与成长有稳定依据、事件有累积感、结算可追溯；缺点：token 增加、模型要心算且长会话会累积误差、同一事件两次结算可能不一致、标记写错会导致显示或触发失败」，玩家同意后才读 `docs/supplements/数值卡.md`。不要擅自加数值，也不要加了却不交代代价。',
         '',
         '## 启动规则',
@@ -1230,6 +1360,26 @@ export function apply(ctx) {
         '- 用户先说不上传、后来又改口要上传时，直接接着走上传分支，不要重复劝。',
         '- 两个硬性停点：条目清单确认、两套取舍方案由用户选定（方案文档走 propose / approve-design）。未确认不写世界书。',
         '- 产出分三份：世界书条目（进第一部分）、视觉参考（独立交付，给第二三部分）、资料库文件（留在 .card-build/library/）。',
+        '',
+        '## 上传自制卡的评估与优化（工具 card_review / 命令 /card-review）',
+        '触发：用户上传或粘贴自己的 RP 卡（平台导出的 JSON，可能是旧版键名），说「帮我看看这张卡」「评估一下」「优化逻辑／体量」「为什么这么占上下文」「这张卡哪里有问题」。',
+        '- 不要走 card_build 四部分流程，也不要让用户重做卡；直接用 card_review 在现有卡上做。',
+        '- 步骤：`status` → `ingest`（`file` 或 `text`）→ `audit` → 用通俗话把结论讲给用户（先讲必修，再讲每轮体量基线）→ 用户明确要优化后 `plan` 出方案 → 用户确认方案后你按方案改写字段 → `apply`（只提交改动字段或整卡 JSON）→ `export`。',
+        '- 对话附件先落盘到工作区（如 `.card-build/review/upload-<name>.json`），再把实际路径传给 `ingest`；不要假设附件路径可直接读。用户只发截图或正文时，说明本流程需要平台导出的 JSON，让用户重新导出，不要猜字段。',
+        '- 闸门：audit 需要 ingest；plan 需要 audit；apply 需要 plan；export 需要 apply。apply 会重新审计，引入新的必修问题会被拒收；只有用户明确同意承担风险才带 `force`。',
+        '- 优化前先做全作品评估：通读 `ppt` / `ptx` / `post_text` / `desc` / `built_in_css` / `rgx_rep` / `ai_variable_tmpl` / `ai_v_json` / `ai_v_prompt`，确认前端/面板层是否已经实现同一份数据（商店索引、列表、表单等）。面板已用代码建立的商店库不要在世界书里再写一份索引。',
+        '- 尊重导出件原字段名：不要为了“规范”改名或强行转 v2；旧版/非 v2 源导出时沿用原键名与结构（工具输出 `card.optimized.source.json`），保留封面、标签、简介、背景等原设置。未登记别名会记到 `.card-build/alias-suggestions.json`，不要猜字段；补别名是框架侧的活，确认后单独发版。',
+        '- 改写守则：只压缩、去重、补缺、重排；不改世界事实、角色设定、尺度档位与玩家代理边界。`wb` / `rgx_rep` 是整组替换，只改别的字段时补丁里就只放那个字段。',
+        '- 开场白为空不报错：若确认 `desc` 前端已有复制/剪贴板能力，静默；只做过部分检查或没检测到复制时，`audit` 会把问题放进 `questions`，先问用户「网页是否已经内置开场指令并带有复制功能」，不要直接补开场白，也不要把它当错误。',
+        '- 格式/状态判断只给思路：插件不预设字段名。让 AI 自己找卡片规定的输出字段；触发词含空格/冒号/标题符号时，与卡片自己的格式比对，一致就不报。正文只服务某地点/状态而触发词是通用行为词时，提示可能同时触发；触发词是规定格式时，只有内容与条目不一致才报错。',
+        '- 三个先判断：① 改触发词前，先判断这段文本是否每轮都需要（需要就保留常驻并压体量，不要改成稀有词）；② 拆条前，先确认运行时 AI 是否确实只用到其中一部分（整篇每次都要的不要拆）；③ 去重前，先判断是否互斥触发下的必要重复（互斥场景各自自包含，不要合并）。答不清就先问用户。',
+        '- 跨层重复（RV237）：`ppt` / `ptx` / `post_text` 的重复只给候选，不自动删；靠近玩家输入的规则可能是有意保留的。先问用户哪些是必要重复、哪些是纯复制，确认后再改，不能偷偷 apply。',
+        '- 报告口径：体量是内部相对量（按字符数折算，1 个中文字约 1.0–1.7 个单位，默认 5 轮历史），只用于同一张卡前后对比；平台按积分计费，我们无法估算真实消耗，不要宣称具体 token 或积分数字，也不要把审计结论说成「平台已验证」。',
+        '- 用户只说评估、没说要改：做到 audit 就停；可以再 plan 给一份优化清单（plan 只出方案，不改卡），但不要 apply。',
+        '- 大卡/二次测试先做全局评估，再逐个部分优化：先 `audit` 通读全卡，`plan` 后按字段组（ppt / ptx+post / wb / desc+CSS+正则 / 变量面板）逐组改写并 `apply`；每改一组先看 `compare.md`，确认没有引入新问题再改下一组，不要一次性全改。',
+        '- 先读补充材料 `supplements/上传卡评估.md`，里面有审计编号、估算口径与改写边界。',
+        `- 规范依据：评估前按问题涉及层读对应章节——世界书/触发/状态机 → ${DOC.writing} 模块四；档案页/展示 → ${DOC.profile}；聊天页 CSS/正则 → ${DOC.chat}；变量面板/商店索引/面板数据 → ${DOC.variables}；成人向 → ${path.join(DOCS_DIR, '5-成人向补充.txt')}；审卡清单 → ${path.join(DOCS_DIR, 'supplements', '审查清单.md')}；评估框架 → 工作区根 角色卡评估框架.md（若存在，打分由 card_evaluate 实现）。`,
+        '- 导出件是整卡覆盖：提醒用户先备份原卡，导入后实测几轮；旧版导出件的标签/BGM/封面等设置无法映射到 v2，需要在平台里补设。',
         '',
         '## 教学模式（默认关闭）',
         '默认按正常节奏干活，不讲解原理。',
@@ -1273,6 +1423,7 @@ export function apply(ctx) {
         '实现层三条硬约束：① 填写字段超过 12 个或存在多条路线时，表单必须由一份字段描述数组驱动（渲染/取值/示例/随机/编译全自动），禁止逐页手写；② 每个填写区至少具备空白与示例两态，字段多时再加随机态，随机按区块分粒度；③ 随机必须按依赖链顺序抽取（性别→外貌库→称谓、规模→资金区间），锚点改动即下游整组重抽，不得各字段独立抽。',
         '高级选项默认不做，由你根据玩家原话或设定判断：隐藏第二界面、多主题皮肤、动态增删条目、响应式双形态、彩蛋分支、演出式彩蛋。玩家明确要求了才启用，启用就必须达到最低完成度（可退出、可跳过、不污染主流程、不丢选中状态），并在交付说明里写清启用与不启用的理由。',
         '动效按 A/B/C 三档执行：A 必做 15 条是底线（视图切换、按压、选中、错误、成功、复制反馈、焦点光晕、列表入场、折叠展开、打字机等），B 按题材挑、不要求全上，C 需判据。规范里的时长/曲线/幅度**仅供参考**，不是验收标准；验收只看八条红线与三条反例（只动 transform/opacity、同屏循环 ≤3、滚动用 rAF、reduced-motion 关循环、transition 属性列表完整、首屏 1s 可交互等）。',
+      '视觉类请求（美化/主题色/整体风格）：从零、同人/原作、导入 JSON 后逐步推进时，按当前部分处理，不确认“美化哪里”；只有导入 JSON 且用户一上来只说美化、没指明初始化页/聊天页/面板/整卡时，问一次范围。背景类型：bg_image/bg_mobile 有值直接判“图像”；两者为空时问一次“使用背景图，还是跟随平台、无背景？”，不能把空字段直接当无背景。固定深色/浅色气泡按 8.9.2 同步文字与平台控件；确认是图像背景且固定气泡时，问一次“不透明度 0 是否让气泡底色消失、透出背景”，无背景图不问；输入框/发送/工具栏/分页/模型选择器是否受影响由 AI 判断，不逐项问；“查原卡规则”只在导入 JSON 时做；交付时直接输出视觉改动说明，不把交付标准变成提问。',
         '',
         '## 前端图像资源（位图只在第二部分；浮动按钮图标例外）',
         '- 位图（背景图、地图、场景插画、带环境的人物图）只在第二部分出现，且只走 Seedream；矢量（图标、装饰、**需要透明背景的人物立绘**）只走 Recraft。',
@@ -1282,6 +1433,7 @@ export function apply(ctx) {
         '- 图标 / 装饰：先向用户报告需求，用户提供或确认现成 SVG 就直接用；用户表示没有，才 `fetch_svg`。',
         '- 写图像 prompt 必须交给 `image-prompt-designer` 子智能体：说明用途、主体、构图、风格、配色、背景与透明要求。角色立绘要写明透明背景、全身、四周留安全边距。',
         '- 生成后：本地文件只用于视觉检查；**必须提醒用户把图上传到平台换长期 URL，并把该 URL 交给 agent 调 `set_url` 回填**，回填后再 `embed`。供应商 URL 是临时的，不得写进交付 HTML。',
+        '- 交付第二部分时，必须给玩家一张可执行的素材清单：每张图的图片名、本地绝对路径、在 HTML 中的位置/作用；再用代码块给出「可复制的图片名清单」和「图片名: 平台URL」的填写模板。不要只报资源 id。',
         '- 第二部分交付时，若有资源仍停留在供应商临时 URL，回复里必须点名提醒（插件会在交付结果里列出待回填的 id），不能漏。',
         '- SVG 校验通过后直接内嵌 HTML，不留外链、不转 PNG。',
         '- 第一部分只记录资源计划，不生成任何资源。',
@@ -1307,7 +1459,7 @@ export function apply(ctx) {
         '世界书标签旁车：`.card-build/wb-plan.json`（可用 `template --part writing` 生成骨架）。每条标 职责（知识/规则/路由/控制词）、激活（内容锚/格式字段锚/格式标记锚）、载体（wb/ppt/ptx/post）；常驻条目必填 `anchorSource`（如 `post:【命运】模式`）。没有该文件时校验跳过，旧卡不受影响。',
         '状态机是可选方案（输出标记 → 条件加载规则），不启用时 `ppt` 不得承诺阶段/时限/进度。',
         '世界书部署字段一律用平台默认值，不要询问用户、也不要照抄任何示例数字：sort=0、depth=0、probability=100、value_region=1、key_region=6、value_type=0。只有用户明确要求更深扫描时才改 depth。',
-        '2. profile：`desc` 完整单文件 HTML。硬约束：地图/全景/立绘/插画必须用 `image_asset` 产图，不得用 CSS 或手写 SVG 拼替代品；透明人物立绘走 Recraft、其余位图走 Seedream；轮播类交互必须首尾循环；界面文案面向玩家，禁止复述需求或数据来源；抽取库条目必须含名称与效果，不许空壳条目；重新随机必须重抽所有未锁定字段，不得残留上一次的选中值或「未知」。',
+        '2. profile：`desc` 完整单文件 HTML。硬约束：地图/全景/立绘/插画必须用 `image_asset` 产图，不得用 CSS 或手写 SVG 拼替代品；透明人物立绘走 Recraft、其余位图走 Seedream；轮播类交互必须首尾循环；界面文案面向玩家，禁止复述需求或数据来源；抽取库条目必须含名称与效果，不许空壳条目；重新随机必须重抽所有未锁定字段，不得残留上一次的选中值或「未知」。**跨部分边界：desc 只做初始化页 iframe 内控件；平台聊天原生输入/发送按钮/消息气泡归第三部分，不得在 desc 里新建聊天输入替代它。**若需求是“终端风格输入栏”，只在第三部分 built_in_css 改原生输入；desc 里只能做展示或复制，不能发送到聊天。',
         '动态几何（见 档案页 §2.11）：图像上的点位必须相对图像内容框定位，图片与点位同处一个变换容器（transform 不得只加在 img 上）；位移只能由布局尺寸推导，禁止用 getBoundingClientRect 反推已变换坐标；循环轮播的瞬移复位要等动画结束（transitionend 或同源时长）；受约束控件钳制后回写控件本身并动态更新 max，约束收紧时回写当前值；拖拽用 pointerdown/move/up（move/up 挂 window），8px 阈值区分点击与拖动，容器声明 touch-action，拖动期间关 transition。',
         '3. chat：`built_in_css` 与 `rgx_rep`。每条正则：`scope` 省略即 1（USER），要 AI=2 / GLOBAL=10 才显式写；`is_enable` 必填；`match_regex` 与 `replace_text` 配对，`replace_text` 允许空字符串；`is_only_render` 按需。',
         '正文容器的正则起点用第一部分已固定的首段【时间地点】：从该段到下一固定段落标题之间是完整正文块，可整体包进同一个容器；不要另造锚点，也不要改动第一部分已交付的标题与字段名。',
@@ -1357,12 +1509,14 @@ export function apply(ctx) {
         '',
         '## 完工后可选评估（assemble 之后，可玩版本或完整版都行）',
         'assemble 成功后先停一次，问用户“要不要按评估框架打分”；用户同意才调用 `card_evaluate`，不同意就结束，不要自动评。若用户此前选了「全面评估」，则不再重复询问，直接评。',
-        '- 先 `card_evaluate audit`：拿到硬指标（每轮开销、前后置词放大倍数、世界书分布、渲染层 is_only_render、自触发碰撞、HTML 环境违规），作为判档参考。',
+        '- 先 `card_evaluate audit`：拿到硬指标（每轮体量、历史消息条数、世界书分布、渲染层 is_only_render、自触发碰撞、HTML 环境违规），作为判档参考。',
         '- 再按锚点判档：只能取 0/1/3/5，不允许中间档；每档必须附一句原文引用。N/A 仅限 S2 / S5–S8 / M5 / X1–X3，且必须写理由与引用；拿不准取较低档并写明犹豫点。',
         '- 最后 `card_evaluate submit`：传 gates（G1/G2/G3）、anchors、evidence、na、preset、strengths/weaknesses/advice/keep，以及 memory_rounds 或 memory_setting + ai_summary。',
         '- 准入任一不通过＝不合格，终止评分，不硬凑分数。工具只做折算与审计，不改作品；报告写入 `qa/evaluation.md`。评分只衡量工程完成度，不衡量作品价值。',
         '',
         '## 硬规则',
+        '- 用户上传自制卡（评估、优化、查逻辑或体量）时走 `card_review`，不要走 card_build 四部分流程；`apply` 前必须有用户对优化方案的明确同意。',
+        '- 上传卡的报告只写体量指标与相对优化，不得声称平台已验证，也不得宣称消耗数字：平台按积分计费，我们无法估算积分；只能说「改这里会让体量变小」。体量换算是内部相对量，仅用于同一张卡的前后对比。',
         '- 普通“继续”、lint 通过、文件存在都不是 PASS；PASS 只在用户明确确认后调用。',
         '- `assemble` 的门槛是：前三部分（writing/profile/chat）当前版本全部 PASS，即可生成「可玩版本」；四部分都 PASS 时生成「完整版」，并入变量面板。第四部分未做不算失败，它属于可选拓展。',
         '- 不要在第三部分 PASS 后自动开始第四部分；必须让用户在「组装 / 评估 / 面板」三者中明确选择。',

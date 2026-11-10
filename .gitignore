@@ -18,3 +18,6 @@ part-*.json
 *.tmp
 .DS_Store
 Thumbs.db
+
+# 本机未登记别名候选（不发布；确认后补 FIELD_ALIASES 并单独发版）
+alias-suggestions.json

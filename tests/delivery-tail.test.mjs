@@ -51,15 +51,21 @@ fs.mkdirSync(path.join(out, '.card-build'), { recursive: true });
 fs.writeFileSync(path.join(out, '.card-build', 'assets.json'), JSON.stringify({
   version: 1,
   assets: [
-    { id: 'bg-01', type: 'background_image', mime: 'image/png', remoteUrlSource: 'provider-temporary' },
+    { id: 'bg-01', type: 'background_image', name: '审讯室-桌面', localFile: 'assets/bg-01.png', placement: 'desc 序章审讯室背景', mime: 'image/png', remoteUrlSource: 'provider-temporary' },
     { id: 'icon-02', type: 'icon_svg', mime: 'image/svg+xml', remoteUrlSource: 'provider-temporary' },
   ],
 }, null, 2));
 run(`pass --out "${out}" --part writing`);
-const d2 = messageOf(run(`deliver --part profile --file "${w('p.json', { ...writing, desc: '<!DOCTYPE html><html></html>' })}"`));
+const d2raw = run(`deliver --part profile --file "${w('p.json', { ...writing, desc: '<!DOCTYPE html><html><body><input placeholder="说点什么"><button>发送</button></body></html>' })}"`);
+const d2 = messageOf(d2raw);
+const d2res = JSON.parse(d2raw);
+assert.ok(d2res.diagnostics.some((x) => x.id === 'OWN002'), 'desc 内输入框+发送语义要提示越界');
 assert.match(d2, /第三部分/, '应主动给出第三部分的想法入口');
 assert.match(d2, /图像资源待回填/, '有临时 URL 资源时必须提醒');
 assert.match(d2, /bg-01/, '要点名具体资源');
+assert.match(d2, /审讯室-桌面/, '要给出图片名');
+assert.match(d2, /assets[\\/]bg-01\.png/, '要给出本地文件位置');
+assert.match(d2, /待复制的图片名清单/, '要给出可直接复制的图片名清单');
 assert.ok(!/icon-02/.test(d2), '矢量内嵌资源不该被当成待回填');
 assert.equal(lastLine(d2), '当前待确认：第二部分：初始化档案页。确认后回复「第二部分：初始化档案页 PASS」');
 

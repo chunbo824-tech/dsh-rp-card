@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { lintStageJson, loadWbPlan, lintWorldbookPlan, WB_BUDGET_TOTAL } from '../lib/core.js';
+import { lintStageJson, loadWbPlan, lintWorldbookPlan, WB_BUDGET_TOTAL, WB_BUDGET_PROFILES, detectComplexity } from '../lib/core.js';
 
 const post = [
   '【时间地点】', '时间：X', '地点：X', '',
@@ -88,6 +88,16 @@ assert.ok(ids(withPlan(huge, plan)).includes('WB102'));
   const forced = stage({ wb: wb800, complexity: 'simple' });
   assert.ok(ids(lintStageJson('writing', forced, { plan: plan800 })).includes('WB102'),
     '显式 simple 时 800 字应超限');
+}
+
+// 3c. 大世界卡：≥80 条或显式 large，预算 6000–8000 / 单条 1200
+{
+  const many = Array.from({ length: 80 }, (_, i) => entry(`_or_词${i}`, '测试正文'));
+  assert.equal(detectComplexity({ wb: many }), 'large', '80 条世界书应判为大世界卡');
+  assert.equal(detectComplexity({ wb: many.slice(0, 79) }), 'complex', '79 条仍按复杂卡');
+  assert.equal(detectComplexity({ wb: [], complexity: 'large' }), 'large', '显式 large 生效');
+  assert.equal(WB_BUDGET_PROFILES.large.total, 8000);
+  assert.equal(WB_BUDGET_PROFILES.large.entry, 1200);
 }
 
 // 4. WB103 缺锚词证明 / 证明找不到

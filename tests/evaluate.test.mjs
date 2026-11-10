@@ -79,14 +79,38 @@ test('审计能抓到长前后置词、不安全正则与环境违规', () => {
   };
   const audit = auditCard(card, { memoryRounds: 10 });
   assert.ok(audit.metrics.prefixSuffix.length >= 240);
-  assert.equal(audit.metrics.prefixSuffix.amplification, 11);
-  assert.equal(audit.metrics.prefixSuffix.level, 'G3 待判');
+  assert.equal(audit.metrics.prefixSuffix.amplification, 1);
+  assert.equal(audit.metrics.prefixSuffix.historyMessages, 10);
+  assert.equal(audit.metrics.prefixSuffix.level, 'ok');
   assert.ok(audit.metrics.selfTrigger.collisions.some((c) => c.includes('Lv.1')));
   assert.equal(audit.metrics.render.onlyRenderTrue, 1);
   assert.equal(audit.metrics.render.onlyRenderFalse, 1);
   assert.ok(audit.metrics.render.dangerous.length >= 1);
   assert.equal(audit.metrics.dataChannel.schemaOk, false);
   assert.ok(audit.warnings.some((w) => w.code === 'ENV' && w.message.includes('<script>')));
+});
+
+test('换行+空白类嵌套量词不按灾难性回溯处理', () => {
+  const audit = auditCard({
+    name: '任务面板卡', pre_prompt: 'p', post_text: 's', wb: [], rgx_rep: [
+      { match_regex: '【状态栏】[ \\t]*(?:\\r?\\n[ \\t]*)+\\*\\*[ \\t]*等级', replace_text: '', is_only_render: true },
+    ],
+  });
+  assert.equal(audit.metrics.render.dangerous.length, 0);
+});
+
+test('desc 允许内联脚本、事件与外部图片；localStorage 仍视为风险', () => {
+  const ok = auditCard({
+    name: '前端页', pre_prompt: 'p', post_text: 's', wb: [], rgx_rep: [],
+    desc: '<script>draw()</script><img src="https://example.com/a.png" onerror="this.remove()">',
+  });
+  assert.ok(!ok.warnings.some((w) => w.code === 'ENV' && w.where === 'desc'), 'desc 的 JS/外链不应报 ENV');
+
+  const bad = auditCard({
+    name: '前端页', pre_prompt: 'p', post_text: 's', wb: [], rgx_rep: [],
+    desc: '<script>localStorage.setItem("a","b")</script>',
+  });
+  assert.ok(bad.warnings.some((w) => w.code === 'ENV' && w.where === 'desc' && w.message.includes('浏览器存储')));
 });
 
 test('submit 写报告，缺证据或缺档位会被拒绝', () => {

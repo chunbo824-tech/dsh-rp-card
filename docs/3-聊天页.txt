@@ -97,6 +97,7 @@ H3 · 交互机制按需引入
 2.2 平台原生输入层
 容器| 类型| 语义| 可靠性
 "div:has(> #ai-input-content)"| ":has()"| 输入区外框| 首选（主题无关）
+"#customized-ai-input-container"| ID| 底部交互区总容器（分页 + 工具栏 + 输入框）| 可靠（2026-11-10 实测；只用于整体间距/渐隐，不替代 #ai-input-content）
 "#ai-input-content"| ID| 输入区内容容器| 可靠
 "#ai-chat-input"| ID| 文本输入控件| 可靠
 "#ai-input-controls"| ID| 控件栏（字数 + 发送）| 可靠
@@ -106,6 +107,9 @@ H3 · 交互机制按需引入
 主题相关、不作为主锚点：
 "div.bg-white.border-\[1.5px\].border-gray-200.rounded-xl" 与 "border-grey-300" 变体。
 两者存在笔误或主题差异的可能，只作视觉对齐参考，不作主选择器。
+结构补充（2026-11-10 实测，只作定位/排查依据，不改变 8.7 的尺寸禁令）：
+- "#ai-send-button"：外层 "div[role=presentation]" 固定 "h-8 w-8"，内部含 "span[data-show]" 与 "svg#ai-send-button-icon"；"border-box" 下 padding 会从内容区扣，不能用 padding 调图标位置。
+- "#ai-input-controls"：绝对定位在输入区右下，"absolute bottom-2 right-2 h-8"；需要垂直居中时先确认上下文，不要只改 bottom 就当成对齐。
 2.3 页面工具层
 容器| 类型| 语义| 可靠性
 "#customized-variable-panel-floating-button"| ID| 变量面板浮动按钮；状态标记 "data-state="open"" / "aria-expanded="true""| 可靠
@@ -128,6 +132,15 @@ H3 · 交互机制按需引入
 "button[data-slot="pagination-link"][data-variant="outline"]"| 属性| 页码按钮| 可靠
 "button[data-slot="pagination-link"][data-variant="ghost"]"| 属性| 箭头/省略号按钮| 可靠
 "input[data-slot="input"][aria-label="pagination"]"| 属性| 页码输入框| 可靠
+"#customized-pagination-container" / "#customized-pagination"| ID| 分页外层容器| 可靠（2026-11-10 实测）
+"nav[data-slot="pagination"]"| 属性| 分页导航容器| 可靠（2026-11-10 实测）
+"[data-slot="pagination-item"]"| 属性| 页码按钮外层包裹（边框/圆角实际挂这层）| 可靠（2026-11-10 实测）
+"#customized-pagination :is([aria-current="page"], [data-active="true"])"| 属性| 分页当前页（必须 scope 到分页容器，不能全局用）| 可靠（2026-11-10 实测；两个属性不一定同时存在）
+"#ai-mod-button2"| ID| 页面工具栏整行容器（不是按钮；不替代 #ai-mod-button）| 可靠（2026-11-10 实测，注意结尾是 2）
+"#customized-model-selector"| ID| 顶部模型选择器外层定位（absolute left-1/2 -translate-x-1/2）| 可靠（2026-11-10 实测）
+"#ai-model-selector"| ID| 顶部模型选择器内层（data-tour="novice-step-3"）| 可靠（2026-11-10 实测）
+"[data-slot="popover-trigger"]"| 属性| 模型选择器可点击层（必须 scope 到 #ai-model-selector / #customized-model-selector）| 可靠（2026-11-10 实测）
+"#ai-mod-button2 button[data-slot="button"]" / "#ai-mod-button2 [data-slot="dropdown-menu-trigger"]" / "#ai-mod-button2 [data-slot="tooltip-trigger"]"| 属性| 工具栏按钮批量兜底（只限该容器内）| 可靠（2026-11-10 实测）
 "#ai-mod-button"| ID| 页面工具栏 · AI 设置（mod）入口| 可靠
 "#customized-ai-summary-button"| ID| 页面工具栏 · AI 摘要| 可靠
 "#customized-prompt-debug-button"| ID| 页面工具栏 · 提示词调试| 可靠
@@ -137,10 +150,12 @@ H3 · 交互机制按需引入
 "#customized-more-button"| ID| 页面工具栏 · 更多菜单入口| 可靠
 "#toggle-sub-buttons"| ID| 页面工具栏 · 子按钮组开关| 可靠
 以上八个 ID 来自既往成功作品，已验证可样式化。仍须按各自实际功能组织规则，不假设其内部结构、条件渲染时机或移动端可见性；需要改内部结构时按第 3 章另取证据。
+工具栏容器与批量锚点：`#ai-mod-button2` 是整行容器，不是按钮，也不能替代 `#ai-mod-button`；批量规则只能写成 `#ai-mod-button2 button[data-slot="button"]` 这类 scoped 选择器，不能全局写 `button[data-slot="button"]`。`MuiButton-root`、`bg-background` 只作为“平台背景可能覆盖”的结构证据，不作主锚点。
+模型选择器：`#customized-model-selector` 只负责外层定位，`#ai-model-selector` 是内层主体；视觉规则优先用内层，避免双 ID 重复写同一套。`[data-slot="popover-trigger"]` 必须 scope 在模型选择器内，不能全局匹配。
 不作主锚点：
 "button.css-m3x93c"。
 这是 MUI emotion 动态类，每次构建可能变化，不可依赖。
-替代写法：页面工具栏按钮用上表的 "#ai-mod-button"、"#customized-*-button"、"#toggle-sub-buttons"；分页用 "button[data-slot="pagination-link"]" 属性锚点。
+替代写法：页面工具栏按钮用上表的 "#ai-mod-button"、"#customized-*-button"、"#toggle-sub-buttons"；整行/批量兜底用 "#ai-mod-button2 button[data-slot="button"]" 等 scoped 写法；分页用 "button[data-slot="pagination-link"]" 属性锚点，页码外层用 "[data-slot="pagination-item"]"。
 2.4 正则生成层（可自由写 HTML，只用于展示，不需要唯一 ID）
 容器| 语义| 是否需唯一 ID
 "details.doc-card"| 通用折叠卡| 否
@@ -605,6 +620,7 @@ CSS 样式是否生效，不能只看选择器是否匹配，还必须考虑：
 - 装饰伪元素（纹理、高光）只能是低透明度点阵或线性渐变，且 pointer-events: none，不得整块填充遮挡背景。
 验收（人工）：把气泡不透明度调到 0，背景图在桌面与手机宽度下均完整可见、无残影、无模糊带；调到中间值时气泡底色按平台滑块变化，不出现双层叠加。
 气泡底色一旦交给滑块，文字可读性就不能只靠固定颜色，处理方式见 8.9。
+若作者固定气泡背景（不写守卫），滑块将无法改变该气泡；这属于强制模式，按 8.9.2 同时固定文字与平台控件配色，并在交付说明写明“滑块对该气泡不生效”。
 8.7 工具按钮状态层
 目的：让同一张卡里的消息操作按钮与页面工具按钮表现一致，而不是每个按钮各写一套。只统一「状态表现」，不统一「视觉风格」——配色仍由各卡决定。
 适用范围：仅第 2.3 节已登记的操作按钮 ID、页面工具按钮 ID，以及分页的属性锚点。清单外按钮先登记再使用。
@@ -622,8 +638,12 @@ CSS 样式是否生效，不能只看选择器是否匹配，还必须考虑：
 按下：不透明度用 --btn-opacity-active。
 禁用：前景用 --btn-fg-disabled，不透明度用 --btn-opacity-disabled。
 焦点：不写 focus 规则，保留平台默认。禁止 outline: none 或其他等价删除；确需自定义时只允许 :focus-visible，且必须给出可见焦点提示。
-属性白名单：color、background-color、opacity、border-color、filter、transition，以及对应的 -webkit- 兼容写法。
+覆盖交互态前：先全文检索原卡 `built_in_css` 是否已有同一元素/同一层的 `:focus` / `:hover` / `:disabled` 规则；新增规则写在文件末尾会天然压过原规则。先明确「保留哪一层、去掉哪一层」，再写覆盖；不能先覆盖再猜。
+属性白名单：color、background-color、border-color / outline-color、-webkit-text-fill-color、opacity、filter、transition，以及对应的 -webkit- 兼容写法。
+!important 判据：满足任一即加，并在交付说明注明理由——① 平台同类声明已用 `!important`；② 平台使用内联 style；③ 该属性是可见性开关（背景、文字色），失效后果不可接受。其余靠 ID + 属性锚点的特异性解决。transition、opacity、stroke、box-shadow 不属于可见性开关，默认不加。
 不得改动：display、flex 相关、width、height、padding、font-size、line-height、position。平台原生按钮的内部布局由平台决定，改了会破坏图标与文字的对齐。
+固定尺寸按钮反例：平台按钮常见 `w-8 h-8` + 全局 `box-sizing: border-box`。此时 `padding` 不会把按钮撑大，而是从内容区里扣：左右各 22px 就能把 32px 的内容区扣成 0，里面的图标直接消失。默认仍不改 width / height / padding；不要用 padding 调图标位置。确需改变按钮尺寸时，必须先确认平台布局允许，并单独计算「外框尺寸 − padding − 边框 = 内容区」，不能把改尺寸当常规修法。
+背景声明失效兜底：先核对导入版本和选择器；确认背景被平台 `background` 简写、`bg-clip-padding` 或内联样式改写后，才用 `box-shadow: inset 0 0 0 1000px <color>` 做纯视觉兜底（不改变布局）。这是“实底填充例外”，只允许在 `background-color` 实测被覆盖时使用；不要把它当成第一选择，也不要用它替代选择器排查。
 禁止事项：
 - 用 MUI emotion 动态类（如 button.css-xxxxx）作锚点：哈希随构建变化，失配时静默失效且作用域不可控。
 - 用单一类名或按钮标签选择器批量套用：会命中不打算修改的按钮。
@@ -663,12 +683,69 @@ CSS 样式是否生效，不能只看选择器是否匹配，还必须考虑：
 - 折叠与展开：收起状态下若只剩标题条，标题文字同样属于半固定组件，必须在两种主题下都可读。
 交付要求：在第三部分交付说明里写明本卡使用哪种模式、覆盖了哪些位置（正文、链接、引用、代码、输入框、按钮）；使用强制模式时列出文字保底方案。
 验收（人工）：强制深色看日间模式下的正文、链接、输入框；强制浅色看夜间模式下的同样三处；跟随模式在日间与夜间各看一遍。通过标准是对应模式下文字全部可见、无白块、无黑字，自定义色两边都能读。
+8.9.1 图像背景上的控件保底
+页面背景只分两类：**图像** / **跟随平台（无背景）**。作者固定实色不单列为页面背景类型，按 8.9 / 8.9.2 的“固定底色”处理。
+背景类型不能只凭空字段推定：`bg_image` / `bg_mobile` 有值可直接判“图像”；两者为空时，必须先问一次“使用背景图，还是跟随平台、无背景？”，确认后再套用本节或 8.9.2。
+当页面或卡片区域使用背景图（`bg_image` / `bg_mobile` 非空）时，“透明底 + 浅色图标”不成立：图像亮部会把浅色吃掉。控件至少满足以下一项：
+- 实底底板（建议不透明度 ≥ 0.85）；
+- 深色半透明底（建议 ≥ 0.6）+ 1px 浅色描边；
+- 图标本身加描边或阴影（`text-shadow` / `drop-shadow`）。
+禁止只靠图标颜色在图像上取对比。验收要看**最亮的一段背景**，不是整体看；桌面和手机各看一次。
+
+8.9.2 固定气泡背景的联动触发
+判定“固定背景”：作者在 `built_in_css` 直接设置气泡本体背景，且没有用 `:not([style])` / `[style=""]` 守卫把控制权交回平台滑块。此时平台滑块不能改变该气泡底色，属于强制模式。
+- 固定深色：气泡文字必须固定浅色（`color` + `-webkit-text-fill-color`）；平台原生控件也要按深色适配：输入框文字/占位符/caret、发送按钮图标、工具栏/分页/模型选择器图标与文字、滚动到底部按钮等，不能留平台浅色默认。
+- 固定浅色：反之，气泡文字固定深色，平台原生控件按浅色适配。
+- 只固定部分气泡/混合区域：按容器分别判断，不要全局反色。
+- 固定气泡背景与 8.6 的滑块互斥：如果必须保留滑块，气泡背景只能写守卫兜底，不能算固定背景；此时不要强制平台控件配色，按 8.6 / 模式三处理。
+- 固定气泡背景 + 有背景图时，必须问用户一次：是否要“平台不透明度拉到 0 时气泡底色消失、背景图透出”的效果？不做则滑块可能对该气泡不起作用；做则气泡背景按守卫/透明方案处理。无背景图不问。
+- 平台原生控件是否受本次主题影响（输入框、发送按钮、工具栏、分页、模型选择器），由 AI 按 8.7 / 8.9 / 8.9.1 的适用条件自主判断并写进交付说明，不向用户逐项确认。
+- 验收：固定深色/浅色气泡在日间与夜间各看一遍；气泡文字、输入框文字、按钮与图标都要可读。
+
+8.10 控件分层命名
+同一个“输入框”通常有三层，先对齐具体元素再写样式：
+- 平台外框容器（无 ID，如 `div.bg-white.border-[1.5px]`）：用 `div:has(> #ai-input-content)` 这类结构锚点定位；
+- 卡内容器（`#ai-input-content`）：可写边框、内阴影；
+- 输入控件本体（`#ai-chat-input`）：文字、光标、占位符、焦点边框；
+- 焦点环：可能同时存在于上面两层，必须明确保留哪一层。
+交付说明必须写清“这次动的是哪一层”，不能只说“改了输入框”。
+
+8.11 平台图标不可靠时的自绘
+平台 SVG 受尺寸类、裁剪、颜色规则影响，跨版本不稳定。需要确定外观时，才允许隐藏平台图标并用 `mask-image` 自绘：
+```css
+#btn > svg { display: none !important; }
+#btn::after {
+  content: "";
+  width: 12px; height: 12px;
+  background-color: #e9fff2;
+  -webkit-mask-image: url("data:image/svg+xml,...");
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+```
+mask 用形状的 alpha，颜色由 `background-color` 控制；按钮尺寸、图标尺寸、内容区尺寸分开算，不能用 padding 撑。mask 是例外方案，不是默认替换所有平台图标。
 
 ---
 第 9 章 · 工作流程
 本框架以已验证能力库为基础开展设计。
 默认优先复用已验证的容器、正则表达式、HTML 结构生成机制和 CSS 选择器，不要求每次任务重新分析平台 DOM 或从零验证已有能力。
 只有当现有能力库无法满足目标需求时，才进入新能力调查和验证。
+9.1 改样式前置动作
+1. 先读原卡对应章节和现有 `built_in_css`，列出「现有规则 / 本次新增规则」；同一元素已有 `:focus/:hover/:disabled` 时，先明确保留哪一层，再写覆盖。
+2. 每版交付必须带：版本号 + 一句话差异 + 一个肉眼可验证点（例：「箭头应出现、平台图标应消失」）。
+3. 用户报「没生效」时，先核对导入版本（平台保存有延迟），再排查选择器与级联；不要在版本不对时改 CSS。
+4. 每轮改完索要对应模式（日间/夜间）的截图，不靠文字描述判断；图像背景的控件按 8.9.1 看最亮区域。
+9.2 视觉类请求的触发范围
+- 从零写卡、同人/原作导入、导入 JSON 后按正常步骤推进：当前在哪一部分就按该部分处理，不确认“美化哪里”。
+- 只有“导入 JSON + 用户一上来只说美化/主题色且没有指明初始化页、聊天页、面板或整卡”时，问一次范围；已指明范围则不问。
+- 页面背景按 8.9.1 分“图像 / 跟随平台（无背景）”；作者固定实色不单列为页面背景类型，按固定底色处理。
+- 背景类型判定：`bg_image` / `bg_mobile` 有值 → 直接判“图像”；两者为空 → 问一次“这张卡是使用背景图，还是跟随平台、无背景？”，不能把空字段直接当无背景。
+- 固定深色/浅色气泡按 8.9.2 同时适配文字与平台控件；有背景图且固定气泡时，问一次“不透明度 0 是否让气泡底色消失、透出背景”；无背景图不问。
+- 输入框、发送按钮、工具栏、分页、模型选择器是否受主题影响，由 AI 自主判断，不逐项问。
+- “查原卡已有规则”只在导入 JSON 时触发；从零/同人没有原卡 CSS。
+- 交付时直接在回复里输出视觉改动说明（背景类型、气泡模式、影响层、透明度 0 结论、验证点），不把交付标准变成提问。
 第一步：明确设计需求
 根据用户要求确定：
 - 需要实现什么视觉效果。
