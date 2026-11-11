@@ -1,6 +1,6 @@
 {
   "name": "dsh-rp-card",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "type": "module",
   "description": "DeepSeek Harness 插件：按四部分流程创作 RP 卡，含世界书规则层、人工门禁、图像能力设置、上传卡评估与平台组装。",
   "main": "index.js",
