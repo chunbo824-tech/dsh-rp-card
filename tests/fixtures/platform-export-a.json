@@ -1,0 +1,72 @@
+{
+  "dsc": "",
+  "preset_tp": 1,
+  "type": 1,
+  "sq": [],
+  "tmp_val": "default",
+  "dcm": false,
+  "language": "zh-Hans",
+  "block_wd": [],
+  "shortcut_commands": [],
+  "regex_rp": [],
+  "post_text": "x",
+  "lore_bk": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "ai_v_json": "",
+  "pre_text": "x",
+  "chk_tag": "",
+  "dsmc": 6,
+  "cgb": [],
+  "summary": "x",
+  "builtCss": "",
+  "mod_pm": 4,
+  "is_anon": false,
+  "suggested_questions_after_answer": {
+    "enabled": true
+  },
+  "visible_platform": 0,
+  "bg_mobile": "",
+  "opening_statement": "x",
+  "lbls": [],
+  "ref_id2": 1,
+  "is_available_not_public": true,
+  "cvr_url": null,
+  "bgm": {
+    "tracks": [],
+    "autoplay": true
+  },
+  "ctny": "",
+  "pre_prompt": "x",
+  "ext": {
+    "ai_variable_enabled": false
+  },
+  "app_name": "x",
+  "bg_img": "",
+  "ai_variable_tmpl": "",
+  "category": 0,
+  "ai_s_config": {
+    "big_prompt": "",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "",
+    "enable_status": 2
+  },
+  "ai_variable_text": "",
+  "pst_chats": []
+}

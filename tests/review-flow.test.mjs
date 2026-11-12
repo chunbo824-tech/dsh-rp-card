@@ -191,10 +191,10 @@ test('v2 导出遇到不认识的字段原样保留，不静默丢弃', () => {
   assert.equal(platform.tmp_val, 'default');
 });
 
-test('旧版键名导出件沿用原字段名，cover/标签/背景不丢', () => {
+test('随机键名组合导出件沿用原字段名，cover/标签/背景不丢', () => {
   const dir = workspace();
   const legacy = {
-    nm: '旧版卡', pre_prompt: '你是记录员。', pre_text: '旧前缀', post_tx: '【时间地点】\n时间：X\n地点：X',
+    nm: '随机卡', pre_prompt: '你是记录员。', pre_text: '随机前缀', post_tx: '【时间地点】\n时间：X\n地点：X',
     greet_st: '开场', world_book: [], inner_css: '.x{}', ai_v_template: '模板',
     ext: { ai_variable_enabled: false }, back_img: 'https://example.com/old-bg.png',
     cover: 'https://example.com/cover.png', tag_list: ['标签'], lang: 'zh-Hans',
@@ -209,8 +209,8 @@ test('旧版键名导出件沿用原字段名，cover/标签/背景不丢', () =
   assert.equal(exp.kind, 'source');
   assert.match(exp.file, /card\.optimized\.source\.json$/);
   const platform = JSON.parse(fs.readFileSync(path.join(dir, exp.file), 'utf8'));
-  assert.equal(platform.nm, '旧版卡');
-  assert.equal(platform.pre_text, '旧前缀');
+  assert.equal(platform.nm, '随机卡');
+  assert.equal(platform.pre_text, '随机前缀');
   assert.equal(platform.post_tx.includes('【正文】X'), true);
   assert.equal(platform.back_img, 'https://example.com/old-bg.png');
   assert.equal(platform.cover, 'https://example.com/cover.png', '未映射的封面必须原样保留');
@@ -384,7 +384,7 @@ test('别名表变化后的旧状态会被要求重新 ingest', () => {
   const dir = workspace();
   const file = writeCard(dir, rawCard());
   reviewAction({ action: 'ingest', file }, dir);
-  // 模拟旧版本按旧别名读入：source 里后缀为空，但 raw 里有原始字段
+  // 模拟随机键名组合按别名读入：source 里后缀为空，但 raw 里有原始字段
   const sourcePath = path.join(dir, '.card-build/review/source.json');
   const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
   source.post_text = '';

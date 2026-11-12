@@ -1,0 +1,72 @@
+{
+  "extend": {
+    "ai_variable_enabled": false
+  },
+  "cg_book": [],
+  "bg_music": {
+    "tracks": [],
+    "autoplay": true
+  },
+  "shortcut_commands": [],
+  "mod_pm": 4,
+  "ai_variable_template": "",
+  "disable_cssmod": false,
+  "locale": "zh-Hans",
+  "pchats": [],
+  "rgx_rep": [],
+  "nm": "x",
+  "def_sent_cnt": 6,
+  "bw": [],
+  "pre_text": "x",
+  "cov_tn": "",
+  "preset_tp": 1,
+  "sys_opt": false,
+  "cover": null,
+  "prpt": "x",
+  "ref_id2": 1,
+  "ai_variable_json": "",
+  "cate": 0,
+  "built_in_css": "",
+  "posttxt": "x",
+  "ianon": false,
+  "description": "",
+  "sug_q": [],
+  "summary": "x",
+  "card_type": 1,
+  "world_bk": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "vp_mode": 0,
+  "ai_v_prompt": "",
+  "tg": [],
+  "bg_m": "",
+  "suggest_q_after": {
+    "enabled": true
+  },
+  "v_mode": 0,
+  "bgimg": "",
+  "ai_s_config": {
+    "big_prompt": "",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "",
+    "enable_status": 2
+  },
+  "greet_st": "x",
+  "is_available_not_public": true
+}

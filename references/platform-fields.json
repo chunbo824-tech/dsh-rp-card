@@ -1,0 +1,1366 @@
+{
+  "version": 1,
+  "status": "authoritative-v1",
+  "updatedAt": "2026-11-12",
+  "note": "权威字段库（单一来源，v1 定稿）。登记＝插件能理解这个键；映射＝v2 导出时写到对应 v2 键；aliases 是平台每次导出随机抽的同义键池。平台导出每次随机、v2 只是导入契约；新增观测必须同时更新本文件、lib/core.js 与测试。",
+  "platformBehaviors": {
+    "exportKeys": "每次导出独立随机抽一套同义键名（同卡三次键名均不同，值一致）",
+    "importContract": "v2 标准 40 键可导入；平台读取数据；导出不回同样键名",
+    "exportMayOmit": ["ps_chats/preset_chats（预设对话，平台界面仍在但导出可能为空）", "cvr_tiny（封面缩略，设置封面后导出仍为空）"],
+    "autoSummary": "1=开启、2=关闭；平台会读 extras 里的 ai_summary_config/ai_s_config，v2 导入件已剔除并保持默认关闭",
+    "images": "本地上传后导出为平台 CDN URL；封面/桌面/手机背景带 https://，CG image_url 不带协议头，音乐在 bg-music.catai.wiki",
+    "platformRewrite": "opening_statement 导入后被改写为「選擇一段开场白」（待确认是否平台默认行为）",
+    "tags": "平台标签机械规定，导入标签可能不生效；插件只读不写"
+  },
+  "evidence": {
+    "11-05": "作品-末日拘束系统-20261105-171743.json",
+    "11-09": "测试/.card-build/review/upload-末日拘束系统.json",
+    "11-10": "测试/作品-末日拘束系统-20261110-182817.json",
+    "A": "测试/平台导出/作品-x-20261112-115105.json",
+    "B": "测试/平台导出/作品-x-20261112-133956.json",
+    "C": "测试/平台导出/作品-x-20261112-134241.json",
+    "D": "测试/平台导出/作品-x-20261112-141213.json",
+    "E": "测试/平台导出/作品-x-20261112-143040.json",
+    "F": "测试/平台导出/作品-x-20261112-143354.json",
+    "G": "测试/平台导出/作品-x-20261112-144446.json"
+  },
+  "fields": [
+    {
+      "id": "title",
+      "label": "卡名",
+      "v2Key": "name",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "title",
+        "name",
+        "card_name",
+        "nm",
+        "app_name"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "作品名；第一部分写作时命名"
+    },
+    {
+      "id": "summary",
+      "label": "简介",
+      "v2Key": "sum_info",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "mapped",
+      "aliases": [
+        "sum_info",
+        "summary",
+        "abstract",
+        "abs_txt",
+        "smry"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第一部分可选产出；不是自动总结"
+    },
+    {
+      "id": "ppt",
+      "label": "主提示词",
+      "v2Key": "pre_prompt",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "ppt",
+        "pre_prompt",
+        "system_prompt",
+        "main_prompt",
+        "pre_pt",
+        "prpt",
+        "prompt_pre"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "主提示词正文"
+    },
+    {
+      "id": "ptx",
+      "label": "前置词",
+      "v2Key": "ptx",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "ptx",
+        "pre_text",
+        "pretxt",
+        "pre_tx"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "玩家输入判定；末尾「以下为玩家输入：」"
+    },
+    {
+      "id": "post_text",
+      "label": "后置词",
+      "v2Key": "post_text",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "post_text",
+        "suffix_txt",
+        "posttxt",
+        "post_tx",
+        "potx"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "文风约束；首行「玩家输入已结束。」"
+    },
+    {
+      "id": "opening_statement",
+      "label": "开场白",
+      "v2Key": "opening_statement",
+      "type": "string",
+      "default": "",
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "opening_statement",
+        "opening",
+        "greeting",
+        "greet_st",
+        "ost",
+        "open_st"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "按卡型分流：平台字段或第二部分初始指令"
+    },
+    {
+      "id": "wb",
+      "label": "世界书",
+      "v2Key": "lore_bk",
+      "type": "array",
+      "default": [],
+      "part": "writing",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "wb",
+        "lore_bk",
+        "worldbook",
+        "world_bk",
+        "world_book"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "12 字段条目数组"
+    },
+    {
+      "id": "desc",
+      "label": "详细介绍 / 档案页 HTML",
+      "v2Key": "desc",
+      "type": "string",
+      "default": "",
+      "part": "profile",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "desc",
+        "description",
+        "intro",
+        "descr",
+        "dsc"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第二部分初始化页"
+    },
+    {
+      "id": "built_in_css",
+      "label": "内置 CSS",
+      "v2Key": "built_in_css",
+      "type": "string",
+      "default": "",
+      "part": "chat",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "built_in_css",
+        "bicss",
+        "builtin_css",
+        "inner_css",
+        "builtCss"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第三部分聊天页样式"
+    },
+    {
+      "id": "rgx_rep",
+      "label": "正则替换",
+      "v2Key": "rgx_rep",
+      "type": "array",
+      "default": [],
+      "part": "chat",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "rgx_rep",
+        "regex_replaces",
+        "rrep",
+        "regex_rp"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第三部分正则规则数组"
+    },
+    {
+      "id": "ai_variable_tmpl",
+      "label": "变量模板",
+      "v2Key": "ai_variable_tmpl",
+      "type": "string",
+      "default": "",
+      "part": "variables",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "ai_variable_tmpl",
+        "ai_v_template",
+        "ai_variable_template"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第四部分面板模板"
+    },
+    {
+      "id": "ai_v_prompt",
+      "label": "变量提示词",
+      "v2Key": "ai_variable_prompt",
+      "type": "string",
+      "default": "",
+      "part": "variables",
+      "authorable": true,
+      "exportMode": "mapped",
+      "aliases": [
+        "ai_v_prompt",
+        "ai_variable_text",
+        "ai_variable_prompt"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第四部分变量 Prompt"
+    },
+    {
+      "id": "ai_v_json",
+      "label": "变量 JSON",
+      "v2Key": "ai_v_json",
+      "type": "string",
+      "default": "",
+      "part": "variables",
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "ai_v_json",
+        "ai_variable_json"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "第四部分 Schema"
+    },
+    {
+      "id": "extend",
+      "label": "变量面板开关",
+      "v2Key": "extend",
+      "type": "object",
+      "default": {
+        "ai_variable_enabled": false
+      },
+      "part": "variables",
+      "authorable": true,
+      "exportMode": "mapped",
+      "aliases": [
+        "extend",
+        "ext"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "ai_variable_enabled 布尔"
+    },
+    {
+      "id": "labels",
+      "label": "标签",
+      "v2Key": "labels",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "readonly",
+      "aliases": [
+        "labels",
+        "lbls",
+        "tag_list",
+        "tags",
+        "tg"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "平台标签机械规定，导入标签可能不生效；插件不写标签，只读登记"
+    },
+    {
+      "id": "lc",
+      "label": "语言",
+      "v2Key": "lc",
+      "type": "string",
+      "default": "zh-Hans",
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "lc",
+        "language",
+        "lang",
+        "locale",
+        "lng"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "界面语言"
+    },
+    {
+      "id": "ianon",
+      "label": "匿名",
+      "v2Key": "ianon",
+      "type": "boolean",
+      "default": false,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "ianon",
+        "is_anon",
+        "anonymous",
+        "anon"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "匿名发布"
+    },
+    {
+      "id": "plat_vis",
+      "label": "可见范围",
+      "v2Key": "plat_vis",
+      "type": "number",
+      "default": 0,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "plat_vis",
+        "visible_platform",
+        "vis_pf"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "平台可见性"
+    },
+    {
+      "id": "mod_pm",
+      "label": "模型参数?",
+      "v2Key": "mod_pm",
+      "type": "number",
+      "default": 4,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "mod_pm",
+        "mod_perm",
+        "modp",
+        "mperm"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "语义待确认；默认 4"
+    },
+    {
+      "id": "ban_wd",
+      "label": "屏蔽词",
+      "v2Key": "ban_wd",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "ban_wd",
+        "block_wd",
+        "banned_words",
+        "bw"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "禁用词数组"
+    },
+    {
+      "id": "no_css_mod",
+      "label": "禁用 CSS 修改",
+      "v2Key": "no_css_mod",
+      "type": "boolean",
+      "default": false,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "no_css_mod",
+        "dcm",
+        "dis_css_mod",
+        "disable_cssmod"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "玩家不能改样式"
+    },
+    {
+      "id": "msc",
+      "label": "音乐",
+      "v2Key": "msc",
+      "type": "object",
+      "default": {
+        "tracks": [],
+        "autoplay": true
+      },
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "msc",
+        "bgm",
+        "bg_music",
+        "bgmusic",
+        "music"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "BGM 配置"
+    },
+    {
+      "id": "def_msg_cnt",
+      "label": "默认消息条数",
+      "v2Key": "def_msg_cnt",
+      "type": "number",
+      "default": 6,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "def_msg_cnt",
+        "def_sent_cnt",
+        "default_msg_count",
+        "dsmc",
+        "default_sent_message_count"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "历史消息条数"
+    },
+    {
+      "id": "preset_tp",
+      "label": "预设类型",
+      "v2Key": "preset_tp",
+      "type": "number",
+      "default": 1,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "preset_tp",
+        "preset_type"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "语义待确认；默认 1"
+    },
+    {
+      "id": "knd",
+      "label": "卡类型?",
+      "v2Key": "knd",
+      "type": "number",
+      "default": 1,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "knd",
+        "type",
+        "card_type",
+        "kind"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "semantics": "语义待确认；值恒为 1，type/card_type 疑似同一字段，暂不映射"
+    },
+    {
+      "id": "category",
+      "label": "分类",
+      "v2Key": "category",
+      "type": "number",
+      "default": 0,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "category",
+        "cate",
+        "categ",
+        "cat"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "作品分类"
+    },
+    {
+      "id": "cgb",
+      "label": "创作图册?",
+      "v2Key": "cgb",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "cgb",
+        "cg_bk",
+        "cg_book"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "疑似创作图册，默认空"
+    },
+    {
+      "id": "cover_tiny",
+      "label": "封面缩略图",
+      "v2Key": "cover_tiny",
+      "type": "string",
+      "default": "",
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "cover_tiny",
+        "cov_tn",
+        "cvr_tiny"
+      ],
+      "evidence": [
+        "11-10",
+        "A",
+        "B",
+        "D",
+        "E",
+        "G"
+      ],
+      "exportMayOmit": true,
+      "semantics": "封面缩略；设置封面后导出可能仍为空（平台导出遗漏）"
+    },
+    {
+      "id": "cvr",
+      "label": "封面",
+      "v2Key": "cvr",
+      "type": "string",
+      "default": null,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "cvr",
+        "cvr_url",
+        "cover",
+        "cover_img"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "封面 URL"
+    },
+    {
+      "id": "avail_np",
+      "label": "公开可见",
+      "v2Key": "avail_np",
+      "type": "boolean",
+      "default": true,
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "avail_np",
+        "avail_not_pub",
+        "is_avail_np",
+        "is_available_not_public"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "G"
+      ],
+      "semantics": "是否公开"
+    },
+    {
+      "id": "ps_chats",
+      "label": "群聊设置",
+      "v2Key": "ps_chats",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "ps_chats",
+        "pst_chats",
+        "pchats",
+        "preset_chats"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "exportMayOmit": true,
+      "semantics": "群聊/预设对话；平台导出可能不带该字段（界面里仍在但导出为空），不能靠导出件恢复"
+    },
+    {
+      "id": "sq",
+      "label": "推荐问题列表",
+      "v2Key": "sq",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "sq",
+        "sugg_ques",
+        "sug_q",
+        "suggested_questions",
+        "suggest_q"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "推荐问题"
+    },
+    {
+      "id": "suggest_q_after",
+      "label": "回答后推荐问题开关",
+      "v2Key": "suggest_q_after",
+      "type": "object",
+      "default": {
+        "enabled": true
+      },
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "suggest_q_after",
+        "sug_q_aa",
+        "sqaa",
+        "suggested_questions_after_answer",
+        "sq_after"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "对象 {enabled}"
+    },
+    {
+      "id": "summary_config",
+      "label": "自动总结设置",
+      "v2Key": "summary_config",
+      "type": "object",
+      "default": {
+        "big_prompt": "",
+        "model_config": {
+          "name": "",
+          "provider": ""
+        },
+        "small_prompt": "",
+        "enable_status": 2
+      },
+      "part": null,
+      "authorable": false,
+      "exportMode": "readonly",
+      "aliases": [
+        "summary_config",
+        "ai_s_config",
+        "ai_summary_config"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "只登记理解；enable_status 1=开启、2=关闭（不是布尔）；平台会读 extras 里的 ai_summary_config/ai_s_config，所以 v2 导入件必须剔除它们并保持默认关闭"
+    },
+    {
+      "id": "bg_img",
+      "label": "桌面背景图",
+      "v2Key": "bg_img",
+      "type": "string",
+      "default": "",
+      "part": null,
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "bg_img",
+        "bg_image",
+        "back_img",
+        "bgimg",
+        "bgi"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "插件不产出图片，只透传已有 URL"
+    },
+    {
+      "id": "mobile_bg",
+      "label": "手机背景图",
+      "v2Key": "mobile_bg",
+      "type": "string",
+      "default": "",
+      "part": null,
+      "authorable": true,
+      "exportMode": "content",
+      "aliases": [
+        "mobile_bg",
+        "bg_mobile",
+        "bg_mb",
+        "bgmob",
+        "bg_m"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "插件不产出图片，只透传已有 URL"
+    },
+    {
+      "id": "shortcut_commands",
+      "label": "快捷指令",
+      "v2Key": "shortcut_commands",
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "mapped",
+      "aliases": [
+        "shortcut_commands",
+        "scmd",
+        "sc_cmds",
+        "shortcut_cmd"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ],
+      "semantics": "快捷指令列表"
+    },
+    {
+      "id": "ref_id2",
+      "label": "引用 ID",
+      "v2Key": "ref_id2",
+      "type": "number",
+      "default": 1,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ref_id2"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "A",
+        "C",
+        "E",
+        "F"
+      ],
+      "semantics": "平台内部"
+    },
+    {
+      "id": "sys_opt",
+      "label": "系统选项",
+      "v2Key": "sys_opt",
+      "type": "boolean",
+      "default": false,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "sys_opt"
+      ],
+      "evidence": [
+        "C",
+        "D",
+        "F"
+      ],
+      "semantics": "平台内部"
+    },
+    {
+      "id": "tmp_val",
+      "label": "临时值",
+      "v2Key": null,
+      "type": "string",
+      "default": "default",
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "tmp_val"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "B",
+        "C",
+        "E",
+        "G"
+      ],
+      "semantics": "平台内部，值 default"
+    },
+    {
+      "id": "chk_tag",
+      "label": "标签检查?",
+      "v2Key": null,
+      "type": "string",
+      "default": "",
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "chk_tag"
+      ],
+      "evidence": [
+        "11-05",
+        "11-09",
+        "11-10",
+        "A",
+        "D",
+        "E",
+        "G"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "ctny",
+      "label": "未知",
+      "v2Key": null,
+      "type": "string",
+      "default": "",
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ctny"
+      ],
+      "evidence": [
+        "11-05",
+        "A",
+        "F"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "ui_flag",
+      "label": "UI 标记",
+      "v2Key": null,
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ui_flag"
+      ],
+      "evidence": [
+        "11-10",
+        "B"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "v_mode",
+      "label": "未知",
+      "v2Key": null,
+      "type": "number",
+      "default": 0,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "v_mode",
+        "vp_mode"
+      ],
+      "evidence": [
+        "11-05",
+        "11-10",
+        "C",
+        "D",
+        "F",
+        "G"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "preset_ch",
+      "label": "预设聊天?",
+      "v2Key": null,
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "preset_ch"
+      ],
+      "evidence": [
+        "11-09"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "tp",
+      "label": "未知",
+      "v2Key": null,
+      "type": "number",
+      "default": 0,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "tp"
+      ],
+      "evidence": [
+        "11-09",
+        "F",
+        "G"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "ext_cfg",
+      "label": "扩展配置",
+      "v2Key": "ext_cfg",
+      "type": "object",
+      "default": {
+        "enabled": true
+      },
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ext_cfg"
+      ],
+      "evidence": [
+        "11-10",
+        "B",
+        "D"
+      ],
+      "semantics": "平台内部"
+    },
+    {
+      "id": "ps_type",
+      "label": "未知",
+      "v2Key": null,
+      "type": "number",
+      "default": 0,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ps_type"
+      ],
+      "evidence": [
+        "11-10",
+        "D"
+      ],
+      "semantics": "语义待确认"
+    },
+    {
+      "id": "image_bk",
+      "label": "未知图片数组",
+      "v2Key": null,
+      "type": "array",
+      "default": [],
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "image_bk"
+      ],
+      "evidence": [
+        "11-10",
+        "A"
+      ],
+      "semantics": "数组；与 bg_img 字符串并存，不是同一字段"
+    },
+    {
+      "id": "ianp",
+      "label": "未知（匿名相关？）",
+      "v2Key": null,
+      "type": "boolean",
+      "default": false,
+      "part": null,
+      "authorable": false,
+      "exportMode": "register",
+      "aliases": [
+        "ianp"
+      ],
+      "evidence": [
+        "F"
+      ],
+      "semantics": "语义待确认；与 anonymous/is_anon 同时出现，不猜映射"
+    }
+  ]
+}

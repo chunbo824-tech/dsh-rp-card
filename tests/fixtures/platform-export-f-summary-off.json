@@ -1,0 +1,136 @@
+{
+  "prompt_pre": "x",
+  "suggest_q": [],
+  "block_wd": [
+    "哈克"
+  ],
+  "rgx_rep": [
+    {
+      "group": "",
+      "scope": 1,
+      "title": "x",
+      "is_enable": true,
+      "match_regex": "x",
+      "replace_text": "x",
+      "is_only_render": null
+    }
+  ],
+  "mobile_bg": "https://catai.wiki/c5ea64bf-308a-4078-6f80-ce60ba249300/mobile",
+  "disable_cssmod": true,
+  "ref_id2": 1,
+  "ps_chats": [
+    {
+      "title": "的",
+      "chats": [
+        {
+          "query": "的",
+          "answer": "1"
+        },
+        {
+          "query": "而且",
+          "answer": "驱蚊器"
+        }
+      ],
+      "suggested_questions": [
+        "我",
+        "阿1"
+      ]
+    }
+  ],
+  "bgmusic": {
+    "tracks": [
+      {
+        "id": "0f9846d5-ea96-41f0-86e4-cb1643e37d5f",
+        "url": "https://bg-music.catai.wiki/music/b60b2c2d-193d-4970-922d-bb47ad277f52/0f9846d5-ea96-41f0-86e4-cb1643e37d5f.mp3",
+        "song": "梦中的婚礼 MARIAGE D' AMOUR",
+        "cover": "",
+        "singer": ""
+      }
+    ],
+    "autoplay": true
+  },
+  "ai_variable_prompt": "x",
+  "sys_opt": false,
+  "tg": [],
+  "ext": {
+    "ai_variable_enabled": true
+  },
+  "built_in_css": "/* x */",
+  "cover_img": "https://catai.wiki/94c321e8-decd-404b-e3fe-ca8c91627c00/cover",
+  "post_tx": "x",
+  "ai_summary_config": {
+    "big_prompt": "",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "",
+    "enable_status": 2
+  },
+  "abs_txt": "x",
+  "open_st": "選擇一段开场白",
+  "cgb": [
+    {
+      "id": "901067f9-5a6e-482a-9fb0-65279419f2bb",
+      "image_url": "catai.wiki/50d732e5-38a4-41c9-d309-752b1bc28e00/w=3000",
+      "key_mode": "or",
+      "key_region": [
+        "ai"
+      ],
+      "keys": [
+        "呃呃"
+      ],
+      "map_area": "chat",
+      "name": "得到",
+      "show_name": true,
+      "unlock_hint": "发送",
+      "show_unlock_hint": true,
+      "is_gallery": true,
+      "gallery_group": "",
+      "value_type": 1,
+      "image_configs": []
+    }
+  ],
+  "v_mode": 0,
+  "sq_after": {
+    "enabled": true
+  },
+  "dsc": "<div>x</div>",
+  "ianp": true,
+  "nm": "x",
+  "category": 0,
+  "ai_variable_json": "{}",
+  "ai_variable_template": "x",
+  "lang": "zh-Hant",
+  "preset_type": 2,
+  "anonymous": true,
+  "bg_img": "https://catai.wiki/b92bac9e-55d7-4e2b-4c44-5f7ee5b3d200/bg",
+  "mperm": 3,
+  "plat_vis": 1,
+  "def_sent_cnt": 6,
+  "scmd": [
+    {
+      "label": "呃呃呃",
+      "command_text": "去请求"
+    }
+  ],
+  "world_bk": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "ctny": "",
+  "tp": 1,
+  "pre_text": "x"
+}

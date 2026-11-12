@@ -457,79 +457,7 @@ CSS Grid 结构规整的节点布局 可评估，但斜线较复杂
 7.1 浮动按钮
 浮动按钮是变量面板与 built_in_css 之间唯一的交接点。按钮样式由 built_in_css 负责，按钮的功能是触发变量面板。
 7.2 完整技术链
-以下六步构成完整的技术链。全部步骤均为已验证方案；其中第六步的两种写法证据不同，按下面标注区分。
-第一步 · 命中平台按钮
-```css
-#customized-variable-panel-floating-button { /* 基础样式 */ }
-```
-第二步 · 隐藏原生图标
-```css
-#customized-variable-panel-floating-button svg,
-#customized-variable-panel-floating-button > * {
-  display: none !important;
-  visibility: hidden !important;
-}
-```
-第三步 · 用 ::before 替代内容
-```css
-#customized-variable-panel-floating-button::before {
-  content: "经营面板" !important;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  letter-spacing: 0.32em;
-  color: #FFFFFF;
-  font-size: 12px;
-  font-weight: 600;
-}
-```
-已验证方案：content: "文本" 的替代方式。
-已验证方案：background-image: url("data:image/svg+xml,...") 的图形替代方式——既往作品已实际生效，SVG 图标可直接作为背景图内嵌，不受 inline <svg> 被剔除的影响。background-size / background-position 控制尺寸与居中，打开态在同一 ::before 上切换内容。
-同源注意：content: url("data:image/svg+xml,...") 是另一条写法，尚无同批作品证据；需要用它时按未验证处理并单独实测，不能因为 background-image 形态有效就推定它也有效。
-第四步 · 位置与外观
-```css
-#customized-variable-panel-floating-button {
-  position: fixed !important;
-  right: 0 !important;
-  top: 50% !important;
-  left: auto !important;
-  transform: translateY(-50%) !important;
-  margin: 0 !important;
-  padding: 20px 9px !important;
-  border-radius: 12px 0 0 12px !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-right: 0 !important;
-  background: rgba(255, 255, 255, 0.10) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.40),
-    -2px 0 14px rgba(0, 0, 0, 0.20) !important;
-  z-index: 2147483647 !important;
-}
-```
-关于 z-index：z-index: 2147483647 不保证绝对置顶。实际层级受 stacking context 限制——父级创建了新的 stacking context 时，子元素的 z-index 只在父级内部有效。浮动按钮能否真正置于最上层，取决于平台 DOM 结构中的 stacking context 关系，需实测确认。
-第五步 · 打开态配色
-平台可能用 [data-state="open"] 或 [aria-expanded="true"] 中的任意一种标记打开态。两个选择器都写，是为了覆盖两种可能的平台实现，不是要求两个属性同时存在。
-```css
-#customized-variable-panel-floating-button[data-state="open"],
-#customized-variable-panel-floating-button[aria-expanded="true"] {
-  background: rgba(168, 50, 40, 0.78) !important;
-  border-color: rgba(255, 180, 160, 0.50) !important;
-}
-```
-第六步 · 悬停与移动端
-```css
-#customized-variable-panel-floating-button:hover {
-  background: rgba(255, 255, 255, 0.20) !important;
-}
-@media (max-width: 520px) {
-  #customized-variable-panel-floating-button {
-    padding: 16px 9px !important;
-    border-radius: 999px !important;
-    right: 8px !important;
-  }
-}
-```
+浮动按钮的实现链见 docs/3 §8.12；本节只保留面板模板与按钮的加载关系。
 7.3 CSS 能改与不能改的边界
 能力 说明
 ✅ 改外观 颜色、形状、位置、伪元素内容
@@ -551,25 +479,10 @@ platform（渲染单例，插入 DOM）
 玩家看到面板
 ```
 浮动按钮的样式归 built_in_css，面板的样式归 ai_variable_template。两者不能混写——混写会导致作用域冲突和优先级不可控。
-7.5 浮动按钮硬约束（位置 · 层级 · 图标资产）
-本节是硬性约束，适用于每张启用变量面板的卡。实现位置仍在 built_in_css（第三部分）；第四部分只提出需求，不把下列样式写进面板模板。
-A. 相对位置
-收起态：position: fixed 贴视口右侧，约一半宽度停在屏内（参考实现 translate: 50% 0）；系统尺寸 64×64，移动端 54×54。悬停或键盘聚焦时向屏内位移（translate 归零）。
-展开态：从右侧边角移到视口底部居中（left: 50%、right: auto、bottom: 110px、translate: -50% 0），尺寸 40×40；移动端 bottom: 20px。位移与尺寸变化用 transition 过渡，只过渡 translate/transform/宽高/颜色。
-两态必须是同一元素的两个状态，不得新增 HTML 节点，也不得依赖平台默认定位；left/right/top/bottom 全部显式写出。
-B. 点击后行为
-展开态必须 z-index: 2147483647，浮于所有层最顶部，保证玩家随时能点到关闭；同屏出现的固定定位浮层（状态终端、任务面板等）不得盖住它。
-关闭动作由平台处理，CSS 不能加点击逻辑。因此关闭键在所有状态下都必须可见且可点击：不得 pointer-events: none、不得被遮罩层覆盖、不得移出视口或缩到不可点。
-打开态判定必须双写 [data-state="open"] 与 [aria-expanded="true"]；只写一种会在另一种平台实现下失效。
-若展开态改动 translate/transform，必须确认命中区域完整留在视口内。
-C. 外观实现方法
-容器外观（尺寸、圆角、边框、背景、阴影、悬停态、按下态、过渡）全部写在第三部分 built_in_css；面板模板里不得出现浮动按钮样式。
-收起态与展开态的容器外观都可独立编辑：配色、边框、阴影、尺寸与图标分别定义，不存在"收起态必须保持平台原样"的限制。
-平台原生图标必须先隐藏（其 svg 与直接子元素设为 display: none / visibility: hidden），再用 ::before 承载自定义图形；打开态用同一 ::before 切换为关闭符号或另一枚图标。
-图形资产由 Recraft 生成 SVG（image_asset fetch_svg，asset_type 取 icon_svg / decoration_svg），校验通过后以内嵌 data URI 作为 CSS 背景图使用。不得用 emoji、字体图标、平台自带图标，也不得用大量手写路径临时拼替代。
-图标用 background-size 控制尺寸并留透明安全边距；::before 必须 pointer-events: none，点击仍落到平台按钮本身。
-内嵌通道已验证：background-image: url("data:image/svg+xml,...") 在既往作品中实际生效。面板模板内的 inline SVG 仍会被平台剔除，因此图标必须走 CSS 背景图，不能写进模板。
-动效遵守 prefers-reduced-motion；过渡属性写成完整列表，不写 all。
+7.5 与 built_in_css 的交接
+浮动按钮是变量面板与 built_in_css 之间唯一的交接点。当玩家决定写变量面板时，即在第三部分对平台原生浮球进行适配性修改；按钮的位置、样式、拖拽、打开态与关闭态均由第三部分负责，面板模板不写这些样式。
+变量面板需要脱离原生尺寸时，由模板根节点使用 fixed 全屏舞台承载；具体按钮适配规则见 docs/3 §8.12。
+模板展开约束：根节点 fixed 全屏舞台（如 .vp-stage { position: fixed; inset: 0; z-index: 9998; }），内部用 width:min(720px, calc(100vw - 24px))、max-height:80dvh、overflow-y:auto 控制；浮球保持最上层，关闭由浮球处理。壳层 header/close/JSON 切换 ID 不作默认锚点；若模板舞台被祖先 transform/filter/perspective/will-change/contain 困住，报告平台限制，不硬写壳层。
 ---
 第 8 章 · 完整工作流程
 第一步 · 明确面板目标和信息架构
@@ -703,11 +616,11 @@ F. 跨板块接口
 ☐ 打开态正确识别（双写 [data-state="open"] 和 [aria-expanded="true"]）。
 ☐ 修改浮动按钮接口时，只修改 built_in_css，不修改模板。
 ☐ 未误修改平台按钮的业务逻辑。
-☐ 收起态贴右侧、展开态底部居中，两态位置与尺寸由 CSS 显式给定，移动端单独校准。
+☐ 收起态固定，初始位置/是否半出屏由玩家选择；展开态底部居中，两态位置与尺寸由 CSS 显式给定，移动端单独校准。
 ☐ 展开态 z-index 为 2147483647，浮于所有浮层之上，关闭键始终可点。
-☐ 浮动按钮图标由 Recraft 生成 SVG，经 ::before 承载；未用 emoji、字体图标或手写路径拼替代。
-☐ CSS 内嵌 SVG 走 background-image: url("data:image/svg+xml,...")，未写进面板模板。
-☐ 收起态与展开态的外观分别定义，没有一处沿用平台默认图标或默认配色。
+☐ 图标可用文字/符号、CSS 或内联 SVG 简单图形、emoji、图标字体或 Recraft SVG；未强行要求 SVG。
+☐ 若用内嵌 SVG，走 background-image: url("data:image/svg+xml,...")，不写进面板模板；代码图形同理内嵌。
+☐ 初始样式覆盖平台默认；收起态坐标不加 !important，拖拽/落点由平台处理。
 G. 跨轮验证
 ☐ 上一轮字段正确继承。
 ☐ 有效变更正确更新。

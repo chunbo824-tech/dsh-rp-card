@@ -69,7 +69,7 @@ dsh plugin --profile desktop add /绝对路径/dsh-rp-card
 
 | 部分 | 产出 | 平台字段 | 说明 |
 |---|---|---|---|
-| 1 写卡正文 | `01-writing.md`、`part-1-writing.json` | `name` `pre_prompt` `ptx` `post_text` `opening_statement` `lore_bk` | 主提示词、前缀、后缀、世界书 |
+| 1 写卡正文 | `01-writing.md`、`part-1-writing.json` | `name` `pre_prompt` `ptx` `post_text` `opening_statement` `lore_bk` | 主提示词、前置词、后置词、世界书 |
 | 2 初始化档案页 | `02-profile.html`、`part-2-description.json` | `desc` | 玩家填资料、生成开场文本的单文件页面 |
 | 3 聊天页 | `03-chat.css`、`part-3-chat.json` | `built_in_css` `rgx_rep` | 消息样式与正则替换 |
 | 4 变量面板（可选） | `04-variables.md`、`part-4-variable.json` | `ai_variable_tmpl` `ai_v_prompt` `ai_v_json` `extend` | 地图、商店、状态卡等 |
@@ -97,17 +97,17 @@ dsh plugin --profile desktop add /绝对路径/dsh-rp-card
 
 ## 上传自己的卡：评估与优化
 
-已经有一张卡（平台导出的 JSON，新旧版键名都认）时，不用重做：
+已经有一张卡（平台导出的 JSON，随机键名组合都认）时，不用重做：
 
 1. 把导出文件放进工作区，说「帮我看看这张卡，逻辑和体量有没有问题」；
 2. 它先读卡并审计，给你一份报告：必修问题、体量最大的几处、最该先修的三处（体量是内部相对量，不是平台消耗）；
    > 会抓出的典型问题包括：触发词写成半截括号（如 `【任务定制`）、世界书正文里写平台触发机制（「玩家输入出现某标记就触发」）、长条目拆错、互斥条件的必要重复被误删。
 3. 你同意优化后，它按方案改字段，再重新审计一遍；
-4. 通过后导出：源卡是旧版/非 v2 结构时，生成 `card.optimized.source.json`（沿用原字段名，封面、标签、简介、背景都保留）；v2 源生成 `card.optimized.v2.json`。
+4. 通过后导出：源卡不是 v2 标准键组合时，生成 `card.optimized.source.json`（沿用原字段名，封面、标签、简介、背景都保留）；v2 标准键源生成 `card.optimized.v2.json`。
 
 流程分五步：读入 → 审计 → 方案 → 改写校验 → 导出。改写只会压缩、去重、补缺、重排，不会动你的世界设定与尺度；新增的逻辑错误会被拦下。平台导入是整卡覆盖，先备份原卡。
 
-审计、方案、对比与导出件都在作品目录的 `.card-build/review/` 下：`audit.md`（问题清单）、`plan.md`（优化方案）、`compare.md`（前后对比）、`card.optimized.source.json`（旧版/非 v2 源，沿用原字段名）或 `card.optimized.v2.json`（v2 源）、`review-report.md`（总报告）。未识别的字段名会记到 `.card-build/alias-suggestions.json`，供后续补别名，不随插件发布。
+审计、方案、对比与导出件都在作品目录的 `.card-build/review/` 下：`audit.md`（问题清单）、`plan.md`（优化方案）、`compare.md`（前后对比）、`card.optimized.source.json`（非 v2 标准键源，沿用原字段名）或 `card.optimized.v2.json`（v2 标准键源）、`review-report.md`（总报告）。未识别的字段名会记到 `.card-build/alias-suggestions.json`，供后续补别名，不随插件发布。
 
 > 体量按字符数折算成内部相对单位（1 个中文字约 1.0–1.7 个单位，默认 5 轮记忆），只用于同一张卡前后对比；平台按积分计费，真实消耗我们无法估算，以平台账单为准。
 

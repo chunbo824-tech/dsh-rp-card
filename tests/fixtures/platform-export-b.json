@@ -1,0 +1,74 @@
+{
+  "bg_img": "",
+  "ai_variable_json": "",
+  "posttxt": "x",
+  "tmp_val": "default",
+  "msc": {
+    "tracks": [],
+    "autoplay": true
+  },
+  "ban_wd": [],
+  "no_css_mod": false,
+  "default_sent_message_count": 6,
+  "preset_type": 1,
+  "abstract": "x",
+  "cg_bk": [],
+  "cvr_url": null,
+  "ai_variable_template": "",
+  "builtCss": "",
+  "sugg_ques": [],
+  "ext": {
+    "ai_variable_enabled": false
+  },
+  "card_type": 1,
+  "category": 0,
+  "mod_perm": 4,
+  "world_book": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "ext_cfg": {
+    "enabled": true
+  },
+  "title": "x",
+  "tag_list": [],
+  "visible_platform": 0,
+  "ai_summary_config": {
+    "big_prompt": "",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "",
+    "enable_status": 2
+  },
+  "ui_flag": [],
+  "opening": "x",
+  "intro": "",
+  "cvr_tiny": "",
+  "anon": false,
+  "prpt": "x",
+  "shortcut_commands": [],
+  "pre_text": "x",
+  "is_avail_np": true,
+  "ai_variable_prompt": "",
+  "ps_chats": [],
+  "lc": "zh-Hans",
+  "bg_mb": "",
+  "regex_rp": [],
+  "sug_q_aa": {
+    "enabled": true
+  }
+}

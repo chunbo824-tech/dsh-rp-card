@@ -35,7 +35,7 @@ assert.equal(state1.parts.writing.status, 'generating');
 assert.equal(state1.title, '雨夜咖啡馆');
 assert.ok(fs.existsSync(path.join(out, '00-work-order.md')));
 const analysis = fs.readFileSync(path.join(out, '00-requirement-analysis.md'), 'utf8');
-for (const needle of ['需求预处理', '需求 → 四部分归属', '框架补齐', '关键假设', '功能一致性自检', '唯一归属', '不重复实现', '硬约束不被改写']) {
+for (const needle of ['需求预处理', '需求 → 四部分归属', '框架补齐', '关键假设', '功能一致性自检', '唯一归属', '不重复实现', '硬约束不被改写', '简介（可选', '主角归属']) {
   assert.ok(analysis.includes(needle), `需求预处理模板缺少小节：${needle}`);
 }
 assert.ok(!fs.existsSync(path.join(out, 'part-1-writing.json')), 'start 不应生成阶段 JSON');
@@ -93,7 +93,7 @@ const stage = {
 };
 fs.writeFileSync(skeletonPath, JSON.stringify(stage, null, 2), 'utf8');
 
-// 4a. 触发词出现在前缀词/后置词中必须被拦（否则会变成每轮误触发的常驻条目）
+// 4a. 触发词出现在前置词/后置词中必须被拦（否则会变成每轮误触发的常驻条目）
 const overlap = JSON.parse(JSON.stringify(stage));
 overlap.wb[0].key = '_or_咖啡馆@wb@旧唱片';
 fs.writeFileSync(skeletonPath, JSON.stringify(overlap, null, 2), 'utf8');

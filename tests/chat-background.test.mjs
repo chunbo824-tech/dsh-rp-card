@@ -52,6 +52,10 @@ assert.ok(has(`#customized-copy-button .css-abc123 { color: red; }`, 'CSS004'));
 assert.ok(!has(`#ai-mod-button { color: #E8D5A3; }`, 'CSS004'));
 assert.ok(!has(`#customized-ai-summary-button { color: #E8D5A3; }`, 'CSS006'), '已登记的新增页面按钮不应报清单缺失');
 assert.ok(!has(`#toggle-sub-buttons { color: #E8D5A3; }`, 'CSS006'));
+// 平台文档补充锚点（2.3b）：面板壳层、快捷指令、两组图片/音频按钮都不应报清单缺失
+assert.ok(!has(`#customized-variable-panel-floating-panel-header-actions-close { color: #E8D5A3; }`, 'CSS006'));
+assert.ok(!has(`#customized-shortcut-command-button-3 { color: #E8D5A3; }`, 'CSS006'));
+assert.ok(!has(`#customized-immersive-image-button { color: #E8D5A3; }`, 'CSS006'));
 
 // 9. 清单外容器 ID 提示
 assert.ok(has(`#customized-unknown-button { color: red; }`, 'CSS006'));

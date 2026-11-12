@@ -1,4 +1,15 @@
-﻿# 更新记录
+# 更新记录
+
+## 1.7.2
+
+平台字段兼容与行动建议按钮流程补强。
+
+- 新增平台权威字段库 `references/platform-fields.json`：50 个字段、169 个别名，覆盖随机键名、导出保真、自动总结、背景字段等实测证据；新增字段库一致性、随机键名组合、填充值、自动总结测试。
+- 平台导出兼容：补充随机键名别名、自动总结键的处理、导出可能缺字段的提示；v2 导出与平台随机键名组合分开说明。
+- 统一术语：前缀词 / 后缀词改为前置词 / 后置词，同步系统提示、框架文档、测试与平台键名对照。
+- 新增平台「下一步问题建议」流程：第一部分默认仍写纯文本四条；第三部分开始时询问是否做一键复制按钮；选「是」后返工第一部分输出 `<suggested_questions>`（前 3 条放块内、第 4 条放块外），第三部分清理标签并用原 action-card 规则整段包回。
+- 第三部分新增可选键帽美化：透明按钮热区覆盖前三行、键帽样式、点击下沉反馈、刷新安全；作用域、锚点、`:root` 变量和特异性经验写入 docs/3 5.8。
+- 测试总数 126。
 
 ## 1.7.1
 
@@ -21,7 +32,7 @@
 - 审计编号：RV001–RV008、RV234（结构）、RV101–RV116（体量）、RV201–RV210、RV227–RV233（逻辑）；同时复用 WB / RGX / CSS / CUE / X1 / ENV 既有校验，正则锚点缺失合并成一条，避免刷屏。
 - 新增通用判断：改触发词前判断文本是否需常驻（RV202 给出判断提示）、拆长条目前确认运行期是否只用一部分（RV231）、去重前区分互斥条件下的必要重复（RV230）。plan.md 增加「全作品评估」与「改写前的三个判断」。
 - 大世界卡预算：世界书 ≥80 条或显式 `complexity: large/world/big` 时，常驻预算放宽到 6000–8000 字、单条 1200；简单卡 800/600、复杂卡 1600/900 不变。
-- 上传卡兼容性：后缀是「玩家输入定义型」（含【玩家输入】/PREFIX/POSTFIX 且无【时间地点】）时，不套用 RV005/RV006；世界书已有 IDLE/CONTINUE/END 或状态机判定时，不再报 RV205 空承诺。避免把四部分模板强加到原卡玩法上。
+- 上传卡兼容性：后置词是「玩家输入定义型」（含【玩家输入】/PREFIX/POSTFIX 且无【时间地点】）时，不套用 RV005/RV006；世界书已有 IDLE/CONTINUE/END 或状态机判定时，不再报 RV205 空承诺。避免把四部分模板强加到原卡玩法上。
 - 新增结构性问题：触发词符号不完整/含空白/重复（RV228），世界书正文写运行期识别/防守性命令（RV229，如「玩家输入中出现【X】标记→本轮视为请求」），同一 key 父子触发词冗余（RV232，依据 docs/1 模块四「子集关系天然覆盖」与「最短原则」），世界书与 desc/变量面板层重复（RV233）。
 - 第二部分跨部分边界：明文规定平台聊天原生输入/发送按钮/消息气泡归第三部分；desc 不得新建聊天输入替代原生输入，终端输入栏只能由第三部分改原生样式。新增 `OWN002`：desc 同时出现输入框和发送/聊天/终端语义时提示越界（warning，不阻断初始化表单）。
 - 图像交付清单：`image_asset` 的 `generate` / `fetch_svg` / `record_search` 支持 `name` 与 `placement`；第二部分交付时列出每张图的图片名、本地绝对路径、HTML 位置/作用，并用代码块给出可复制的图片名清单与「图片名: 平台URL」填写模板，不再只报资源 id。
@@ -42,7 +53,7 @@
 - 工具省略 `out` 时固定落会话工作区；相对 `file` 按作品目录解析。命令 `card-review` 的 `--memory-rounds` / `--memory-setting` / `--ai-summary` 与工具参数等价（`-` 与 `_` 都认）。
 - 导出保留原卡已知平台键（labels/msc/def_msg_cnt/bg_img 等）；旧版/非 v2 源改为沿用原字段名与结构（`card.optimized.source.json`），cover / tag_list / 语言 / 界面设置不再因为转 v2 丢失；只有 v2 源生成 40 键 `card.optimized.v2.json`。
 - 未登记别名常态化：`ingest` 把未识别键写到 `<out>/.card-build/alias-suggestions.json`（gitignore、不进包），附 `suggested` 规范字段；确认后补 `FIELD_ALIASES` + 测试再发版框架，候选表本身不随版本发布。
-- 字段别名新增旧版键名：`nm` / `potx` / `post_tx` / `greet_st` / `world_book` / `inner_css`（`pre_text`、`ai_v_template`、`back_img` 原本已支持）；手机背景补 `bgmob`。真实卡的后缀字段叫 `potx` 时，现在会正常读成 `post_text`，不再误报空后缀、也不会在导出时丢掉这段正文。
+- 字段别名新增旧版键名：`nm` / `potx` / `post_tx` / `greet_st` / `world_book` / `inner_css`（`pre_text`、`ai_v_template`、`back_img` 原本已支持）；手机背景补 `bgmob`。真实卡的后置词字段叫 `potx` 时，现在会正常读成 `post_text`，不再误报空后置词、也不会在导出时丢掉这段正文。
 - 第三部分登记补充（2026-11-10 实测）：新增底部交互区总容器 `#customized-ai-input-container`；分页 `#customized-pagination-container` / `#customized-pagination` / `nav[data-slot="pagination"]`、页码外层 `[data-slot="pagination-item"]`、当前页 `aria-current` / `data-active`（必须 scope）；工具栏整行容器 `#ai-mod-button2`（不替代 `#ai-mod-button`）与 scoped `data-slot` 批量锚点；模型选择器 `#customized-model-selector` / `#ai-model-selector` 与 scoped `[data-slot="popover-trigger"]`；补充发送按钮/控件栏结构说明，作为定位与 padding 陷阱依据，不改变尺寸禁令。
 - 第三部分视觉触发：新增 9.2 与系统提示词边界——从零/同人/导入 JSON 逐步推进不确认美化范围；只有导入 JSON 且一上来只说美化才问一次范围。背景分“图像 / 跟随平台（无背景）”；固定深色/浅色气泡按 8.9.2 同步文字与平台控件；有背景图且固定气泡时问一次“不透明度 0 是否透出背景”；平台控件由 AI 自主判断；原卡规则检查仅导入 JSON；交付时输出视觉改动说明而非提问。
 - 第三部分规范补充：固定尺寸按钮的 padding 陷阱与内容区计算、覆盖 `:focus/:hover/:disabled` 前先查原卡同元素规则、背景声明被 Tailwind/`bg-clip-padding` 覆盖时的 inset shadow 实底填充例外、图像背景上的控件对比保底、控件分层命名（8.10）、平台图标 mask 自绘例外（8.11）、改样式前置流程（9.1：版本核对、差异说明、截图验收）；8.7 白名单补 `border-color / outline-color`、`-webkit-text-fill-color`，并加入 `!important` 三条件判据；新增 8.9.2：固定深色/浅色气泡背景时，文字与平台原生控件配色必须同向适配，且与 8.6 滑块互斥时要写明。

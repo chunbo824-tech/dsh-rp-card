@@ -156,6 +156,36 @@ H3 · 交互机制按需引入
 "button.css-m3x93c"。
 这是 MUI emotion 动态类，每次构建可能变化，不可依赖。
 替代写法：页面工具栏按钮用上表的 "#ai-mod-button"、"#customized-*-button"、"#toggle-sub-buttons"；整行/批量兜底用 "#ai-mod-button2 button[data-slot="button"]" 等 scoped 写法；分页用 "button[data-slot="pagination-link"]" 属性锚点，页码外层用 "[data-slot="pagination-item"]"。
+2.3b 平台文档补充锚点（来源：平台元素速查表；未实测，先登记）
+以下 id / data-* 来自平台文档，尚未在本机验证；写样式时按「待实测」处理，失效不报缺陷。部分节点仅在权限、调试或业务条件满足时出现，样式必须能在节点不存在时降级。
+顶栏：
+#header-setting-button / #header-setting-music（BGM 按钮，带 [data-show]）
+变量面板壳层：
+当前实现不使用壳层 ID；只保留浮球入口。壳层 ID 只作平台兼容参考。
+开场白：
+#customized-opening-statement-selector
+提问 / 回答：
+#customized-question / -question-avatar / -question-content-container / -question-content-thinking-line / -question-content-markdown
+#customized-answer-avatar / -answer-avatar-loading-anim-container
+#customized-answer-content-thinking-line / -thinking-block-container / -loading-anim-container
+#customized-answer-content-images / -content-model-refresh-card / -content-model-half-price
+消息操作：
+#customized-immersive-image-button / #customized-immersive-voice-button / #customized-auto-summary-button
+底部 / 输入：
+#chat-input-more-menu / #customized-shortcut-command-button-0…N
+#ai-input-content-attachments / #ai-input-control-expand-icon / #ai-input-control-voice
+#ai-input-control-send-tooltip / #ai-send-button-icon / #ai-stop-button / #ai-stop-button-icon
+data-* 状态：
+#customized-question-content[data-has-css] / #customized-answer-content[data-has-css]
+#header-setting-music[data-show] / #customized-flow-button[data-state="streaming|blocking"]
+#toggle-sub-buttons [data-rotate] / #customized-truncate-refund-button[data-disabled]
+#ai-send-button [data-show]
+语义修正（以平台文档为准）：
+- "#customized-flow-button" 是流式 / 非流式输出切换，不是「流程」。
+- "#customized-prompt-log-button" 是「消耗详情」。
+- "#customized-ai-summary-button" 是「记忆增强」。
+- 图片 / 音频按钮两组并存："#customized-create-image-button" / "#customized-create-audio-button" 与 "#customized-immersive-image-button" / "#customized-immersive-voice-button"；先按别名登记，未实测。
+- "#customized-prompt-debug-button" 是 Prompt 调试（作者 / 调试场景）。
 2.4 正则生成层（可自由写 HTML，只用于展示，不需要唯一 ID）
 容器| 语义| 是否需唯一 ID
 "details.doc-card"| 通用折叠卡| 否
@@ -181,6 +211,7 @@ H3 · 交互机制按需引入
 "details.task-detail-card / .task-index / .task-title / .task-state / .task-detail-content"| 任务详情| 否
 ".cv-marker"| CV 内部标记（默认隐藏）| 否
 本节记录的是已验证的结构命名资产，不代表每个作品都必须使用全部组件。
+【人称与篇幅】是长线自定义人称 / 篇幅时的固定标记段（见 docs/1 模块一），不属于正文，不要把它并进 `.main-text-card` / `.narrative-card`；需要隐藏时由作者在 `built_in_css` 或正则里自行处理。
 2.5 正则生成交互层（需要唯一 ID 隔离）
 容器| 语义| 需要唯一 ID 的原因
 "details.doc-card.status-terminal-card[data-turn-id="…"]"| 状态终端| 卡内用 "input[type=radio] + :checked ~" 做 tab 互斥
@@ -194,6 +225,7 @@ H3 · 交互机制按需引入
 ".quest-entry-detail"| 任务详情面板| 靠 ":checked ~" 显隐
 这一类组件的共同特征：卡内需要 radio + ":checked ~" 实现互斥切换。
 若改用 "<details>" 独立折叠，则可以归入 2.4，不需要唯一 ID，但会失去互斥能力。
+折叠分支：只有玩家选择「把美化代码内置到 AI 输出」（semantic）时，才由第一部分输出协议直接产出 <details> 折叠结构；标准（正则）方案不让 AI 输出 HTML，需要折叠时由第三部分正则把【角色信息】【记忆区】等段落包成 details。两派不混用。
 无法排除的两组多名称：
 以下情况按实际证据处理，不得擅自认定其 DOM 关系。
 1. "#customized-answer-content" 与 "#customized-answer-content-markdown"：可能是父子关系，也可能是同一元素双标识。主用前者；涉及 Markdown 内容时，可使用已记录的 ".markdown-body" 后代选择器。没有实际结构证据时，不得将二者假定为必然的父子关系。
@@ -428,7 +460,245 @@ $1 <span class="进度条 100档"></span>$3
 - 不得将裸关键词着色提前到具体字段或进度条转换之前。
 - 如果某种作品结构需要不同的执行顺序，必须说明其边界条件，并实际验证整个正则链的最终结果。
 - 执行顺序应以正则替换的真实运行顺序为准，不能只按规则文档中的章节顺序推断。
+- 平台下一步问题建议（5.8）由第一部分直接输出；第三部分用原 action-card 规则把整个【行动建议】段包回原框，不在框外做“转按钮”的转换。
+5.8 平台下一步问题建议（suggested_questions）兼容
+适用：玩家明确要求「一键复制 / 快捷点击行动建议」，或 9.0 询问后用户选择做按钮时。默认不做，不要在第一次写第一部分时预写平台块。
+
+5.8.1 平台规则与硬约束
+平台使用正则匹配下一步建议并渲染为按钮：
+<suggested_questions>(\n(<[a-z]{1,4}>)?([1-5A-E]\.|-) [^\n]{7,}(</[a-z]{1,4}>)?){3,}\n</suggested_questions>
+硬性要求：
+- 必须从行首开始，前面不能有空格；
+- 3–5 条；每条独占一行，条内不能换行；
+- 分隔符只能是 `1.`–`5.`、`A.`–`E.` 或 `-`，分隔符后必须有一个空格；
+- 每条正文至少 7 个字符；
+- 可用不超过 4 个字符的小写 HTML 标签包裹单行（`<p>` / `<li>` / `<span>`），标签不能带属性；也可以不用标签；
+- 整个块用 `<suggested_questions>` 与 `</suggested_questions>` 包裹，开标签后、闭标签前各有一个换行。
+
+当前平台实测：在作者正则之前匹配 AI 原文。因此：
+- 作者正则「生成」出来的 `<suggested_questions>` 不会被平台渲染成按钮；
+- 必须由第一部分让 AI 直接输出该块；
+- 第三部分只负责清理文字、恢复原卡片，不负责转按钮。
+
+5.8.2 第一部分输出协议
+保留【行动建议】标题，先输出平台块（前 3 条，用 `<p>` 包住），第 4 条写在块外：
+【行动建议】
+<suggested_questions>
+<p>1. 第一条建议</p>
+<p>2. 第二条建议</p>
+<p>3. 第三条建议</p>
+</suggested_questions>
+4. 自定义：由玩家自行输入行动
+要求：
+- 标签名小写；
+- 前 3 条每条独占一行、行首无空格、条内不换行、每条正文 ≥7 字；
+- 第 4 条必须写在 `</suggested_questions>` 之后，不能放进块；
+- 不要用代码块包住标签；
+- 【行动建议】标题必须保留，供第三部分 action-card 规则定位。
+
+5.8.3 第三部分正则编排
+规则顺序（关键）：
+1. 各段落切分、子卡、字段行等原有规则；
+2. 清理规则一：去容器标签；
+3. 清理规则二：去 `<p>` 外壳；
+4. 原「编号条目」规则；
+5. 各段落卡片（正文 / 角色 / 状态 / 任务 / 记忆）；
+6. 原 action-card 整段包裹；
+7. 玩家发言与 TURN 清理。
+
+清理规则必须排在「编号条目」之前，否则 `<p>1. …</p>` 会挡住编号规则，行动框里只剩普通段落。
+清理规则只处理 raw 标签，不改变平台按钮；平台已在作者正则前完成按钮渲染。
+
+清理规则一：去容器标签
+{
+  "scope": 1,
+  "title": "建议块去容器标签",
+  "is_enable": true,
+  "match_regex": "</?suggested_questions>[ \\t]*\\r?\\n?",
+  "replace_text": "",
+  "is_only_render": true
+}
+清理规则二：去 p 标签
+{
+  "scope": 1,
+  "title": "建议块去 p 标签",
+  "is_enable": true,
+  "match_regex": "<p>((?:[1-5A-E]\\.|-) [^\\r\\n<]*?)</p>",
+  "replace_text": "$1",
+  "is_only_render": true
+}
+说明：
+- `scope` 与卡内其他 AI 消息渲染正则保持一致；实战卡为 `1`，不要仅凭文档把整卡改成 `2`；
+- `is_only_render` 按卡内同类规则设置，当前为 `true`；
+- 清理后行动建议段里只剩 `1.`–`4.` 四行纯文本。
+
+原「编号条目」规则保持原样：
+{
+  "title": "编号条目",
+  "match_regex": "(^|\\r?\\n|<br>)[ \\t]*([0-9]+)\\.[ \\t]+([^\\r\\n]+?)[ \\t]*(?=\\r?\\n|<br>|</div>|</details>|$)",
+  "replace_text": "$1<div class=\"numbered-row\"><span class=\"numbered-index\">$2</span><span class=\"numbered-text\">$3</span></div>",
+  "is_only_render": true
+}
+
+原 action-card 规则保持整段包裹，不要改成只包第 4 条：
+{
+  "scope": 1,
+  "title": "行动建议卡片",
+  "is_enable": true,
+  "match_regex": "【行动建议】[ \\t]*\\r?\\n([\\s\\S]*)",
+  "replace_text": "<details class=\"action-card\"><summary class=\"card-header\">⛓️行动建议</summary><div class=\"card-content\"><br>$1<br></div></details>",
+  "is_only_render": true
+}
+清理后 `$1` 是四条编号行；编号规则先把 1.–4. 变成 `numbered-row`，action-card 再把整段包回原框。平台按钮仍显示在上方，框内保留全部四条建议。
+
+记忆卡边界（标题存在时）：
+{
+  "title": "记忆档案卡片",
+  "match_regex": "【记忆区】[ \\t]*\\r?\\n([\\s\\S]*?)(?=(?:\\r?\\n[ \\t]*)*(?:【行动建议】[ \\t]*\\r?\\n|<suggested_questions>)|$)",
+  "replace_text": "<details class=\"doc-card memory-card\"><summary class=\"card-header\">🔮记忆档案</summary><div class=\"card-content\"><br>$1<br></div></details>",
+  "is_only_render": true
+}
+长期记忆子卡边界：
+{
+  "title": "长期记忆子卡",
+  "match_regex": "(^|\\r?\\n)[ \\t]*\\*\\*[ \\t]*长期记忆[ \\t]*\\*\\*[ \\t]*\\r?\\n([\\s\\S]*?)(\\r?\\n[ \\t]*(?:\\r?\\n[ \\t]*)*)(?=(?:【行动建议】[ \\t]*\\r?\\n|<suggested_questions>))",
+  "replace_text": "$1<details class=\"doc-card sub-card\" data-theme=\"长期记忆\"><summary class=\"card-header\">长期记忆</summary><div class=\"card-content\"><br>$2<br></div></details>$3",
+  "is_only_render": true
+}
+要点：
+- `(?:\\r?\\n[ \\t]*)*` 允许段前有多个空行，避免 AI 多空一行时记忆卡一直吃到文末；
+- 两种边界都认：旧标记【行动建议】和平台标签 `<suggested_questions>`；
+- 如果卡内没有【行动建议】标题，记忆卡会缺少边界，必须先在第一部分恢复标题。
+
+5.8.4 CSS 按钮美化（可选）
+只有玩家要求「把平台按钮做成键帽 / 放到行动框里」时才做；不要求时保留平台默认按钮。
+
+目标形态：
+- 分割线和「试着问问」隐藏；
+- 平台 3 个按钮透明，只保留点击热区；
+- 行动框前三行显示键帽（渐变面、内高光、底部厚边、外投影）；
+- 第 4 行保留原样；
+- 行动框底部显示「点击行动建议，一键复制到输入框中」；
+- 刷新后平台按钮消失，键帽和说明一起失效，四条行动行恢复原样。
+
+作用域（关键）：
+平台按钮块是 `#customized-answer` 的兄弟节点，不在 `#customized-answer-content` 里面。必须用同时包含行动框与按钮块的外层容器：
+`div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"])`
+不要用：
+- `body:has(...)`：`built_in_css` 不在 body 作用域，整组不匹配；
+- `#customized-answer-content:has(...)`：按钮块在它外面，匹配不到；
+- 嵌套 `:has()`：`body:has(div.pt-2:has(...))` 在 Chromium 下不生效。
+
+锚点：
+- 挂在 `#customized-answer-content details.action-card .card-content` 上，不要挂 `details.action-card`；
+- 表头高度、内边距和原有 ID 规则都会让按 `details` 计算的偏移失准；
+- 锚点用 `anchor-name`，按钮块用 `position-anchor` + `top/left/right: anchor(...)`。
+
+核心规则：
+- 平台按钮：`opacity: 0`、保留 `pointer-events: auto`、高度固定（示例 58px）；
+- 行动框内容：`padding: 0`、四行固定高度（示例 58px）、间距 8px，与透明按钮逐行对齐；
+- 前三行：`pointer-events: none`，让点击穿透到下面的平台按钮热区；
+- 键帽样式：渐变面、`inset` 高光、底部厚边、外投影；
+- 覆盖层：`z-index: 2147483647`、`pointer-events: auto`；
+- 所有关键属性加 `!important`：平台按钮是 Tailwind/内联样式，行动行已有 `!important`；
+- 键帽选择器必须带 `#customized-answer-content`，否则被原卡 ID 规则压过；
+- 不使用 `:root` 变量：平台会把 `built_in_css` 限定在消息作用域，`:root` 可能被裁掉，`var()` 全部失效；高度、间距、颜色直接写字面量；
+- 整套规则包在 `:has(按钮块)` 条件内，按钮消失时自动恢复；
+- 点击反馈：用共同外层 `:has(div.pt-2 p[role="presentation"]:nth-of-type(n):active)` 选中对应 `.numbered-row:nth-of-type(n)`，按下时 `translateY(2px)` + 内阴影；行本身 `pointer-events:none`，不拦截点击。
+
+关键 CSS 骨架（以下用嵌套写法示意；交付时展开成扁平选择器，每条都重复外层 `div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"])`，避免平台 CSS Nesting 支持差异）：
+div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"]) {
+  /* 隐藏分割线/标题 */
+  div.pt-2:has(> div.flex.flex-col) > div.flex.items-center { display: none !important; }
+
+  /* 平台按钮透明热区 */
+  div.pt-2:has(> div.flex.flex-col) p[role="presentation"] {
+    height: 58px !important; opacity: 0 !important;
+    pointer-events: auto !important;
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+  }
+
+  /* 内容区锚点 */
+  #customized-answer-content details.action-card .card-content {
+    anchor-name: --sq-key-content;
+    padding: 0 !important; display: flex !important; flex-direction: column !important; gap: 8px !important;
+  }
+
+  /* 按钮块压到内容区 */
+  div.pt-2:has(> div.flex.flex-col) {
+    position: absolute !important; position-anchor: --sq-key-content;
+    top: anchor(top) !important; left: anchor(left) !important; right: anchor(right) !important;
+    z-index: 2147483647 !important; pointer-events: auto !important;
+  }
+
+  /* 行高与键帽 */
+  #customized-answer-content details.action-card .card-content .numbered-row {
+    height: 58px !important; margin: 0 !important;
+  }
+  #customized-answer-content details.action-card .card-content .numbered-row:nth-of-type(-n+3) {
+    background: linear-gradient(180deg, #2b3a31 0%, #19221d 100%) !important;
+    border: 1px solid #4d6556 !important; border-left: 3px solid #72c891 !important;
+    border-radius: 8px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18),
+                inset 0 -2px 0 rgba(0,0,0,.50),
+                0 3px 0 #0b0f0c,
+                0 5px 10px rgba(0,0,0,.35) !important;
+    pointer-events: none !important;
+  }
+
+  /* 底部说明 */
+  #customized-answer-content details.action-card .card-content::after {
+    content: "点击行动建议，一键复制到输入框中" !important;
+    display: block !important; border-top: 1px dashed rgba(115,128,117,.35) !important;
+    text-align: center !important; color: #9fb3a4 !important;
+    font-size: 12px !important; padding: 8px 10px !important;
+  }
+}
+
+点击反馈（对 n = 1、2、3 各写一条，选择器用扁平写法）：
+div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"]:nth-of-type(1):active) #customized-answer-content details.action-card .card-content .numbered-row:nth-of-type(1),
+div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"]:nth-of-type(2):active) #customized-answer-content details.action-card .card-content .numbered-row:nth-of-type(2),
+div:has(#customized-answer-content details.action-card):has(div.pt-2 p[role="presentation"]:nth-of-type(3):active) #customized-answer-content details.action-card .card-content .numbered-row:nth-of-type(3) {
+  transform: translateY(2px) !important;
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,.55),
+    inset 0 -1px 0 rgba(255,255,255,.06),
+    0 1px 0 #0b0f0c !important;
+  transition: none !important;
+}
+说明：
+- 反馈由平台按钮的 `:active` 触发，行动行本身仍然 `pointer-events:none`；
+- 按下时行下沉、投影收起；松开后由基础键帽规则回弹；
+- 第 4 行没有平台按钮，不写反馈。
+
+调试流程：
+1. 先做 DEBUG 可见版：平台按钮红色半透明框、前三行绿色虚线、按钮块黄色描边；
+2. 确认红框是否压在 1/2/3 行上、是否被裁切、高度和间距是否一致；
+3. 对齐后再恢复 `opacity: 0`；
+4. 如果「位置对、点击也行，但高度/颜色不对」，先查 `:root` 变量是否被平台裁掉；
+5. 如果「说明出现、样式没变」，先查键帽选择器是否带 `#customized-answer-content`；
+6. 如果「红框完全不在行动框上」，先查作用域是否用了 body/消息 ID，再看按钮块外层是否 `overflow:hidden`。
+
+限制与降级：
+- 依赖 `position-anchor` / `anchor()`（Chromium 125+）；不支持时整组规则不生效，页面保持原样；
+- 依赖 `div.pt-2` + `p[role="presentation"]` 的按钮块结构；平台改结构就失效；
+- 按钮块外层有 `overflow:hidden` 时绝对定位可能被裁切；
+- 同页多条消息时 `anchor-name` 可能同名，当前只验证单条最新消息；
+- 不要用 `display:none` 隐藏平台按钮，否则点击热区一起消失；用 `opacity:0`；
+- 不要让行动行拦截点击：前三行必须 `pointer-events:none`。
+
+5.8.5 验证
+- 检查 AI 原文严格符合平台格式（行首、3–5 条、7 字、单行、标签长度）；
+- 检查 action-card 是否把整个【行动建议】段包回、框内四条建议都在；
+- 检查清理规则是否在「编号条目」之前，框内是否四条都是 `numbered-row` 而不是普通段落；
+- 检查记忆卡 / 长期记忆子卡是否只装记忆，没有吞建议；
+- 平台实测是否渲染按钮、点击是否填入输入框；
+- 启用 CSS 美化时，检查前三行键帽、第 4 行原样、底部说明、刷新后恢复；
+- 按下前三条时对应行动行是否下沉 2px、投影变内阴影、松开回弹；第 4 行不应有反馈；
+- 失败时退回普通行动建议文本，不强行上按钮。
+
 ---
+
 第 6 章 · TURN_ID 与关联机制
 6.1 适用条件
 只有当组件确实需要跨结构关联、互斥切换或依赖伪类状态控制时，才引入唯一 ID。
@@ -504,6 +774,7 @@ CSS 中通过伪类匹配状态时，用后缀选择器匹配注入的 ID（如 
 - 已有交互机制可以满足需求时，优先复用，不重复设计新的交互系统。
 7.5 可拓展项
 行动建议栏可附加一键复制按钮，通过平台原生复制代码（非 JS）实现。
+需要平台把行动建议渲染成可点击按钮时，走 5.8 的 suggested_questions 兼容；平台按钮模式下仍用原 `details.action-card` 把整段【行动建议】包回原框（四条建议都在），不要剥掉平台块或只包第 4 条。
 属可选能力，不强制。
 ---
 第 8 章 · CSS 设计
@@ -727,11 +998,44 @@ CSS 样式是否生效，不能只看选择器是否匹配，还必须考虑：
 ```
 mask 用形状的 alpha，颜色由 `background-color` 控制；按钮尺寸、图标尺寸、内容区尺寸分开算，不能用 padding 撑。mask 是例外方案，不是默认替换所有平台图标。
 
+8.12 平台原生浮球适配（变量面板入口）
+适用：玩家选择写变量面板，且导入的 JSON 启用了变量面板。按钮由平台提供；本节 CSS 写在 built_in_css。
+A. 初始样式覆盖
+- 平台默认浮球在手机端可能超出页面容器或不显示，不能依赖；写卡时直接覆盖原生外观。
+- 收起态：position: fixed；桌面 64×64、移动 54×54（玩家可改）；圆角、边框、底色、阴影、前景色由玩家选定。
+- 初始位置：左/右侧、纵向偏移、全露出/半出屏由玩家选择；默认右侧、垂直居中、桌面半出屏、移动端全露出。
+- 半出屏用 translate 偏移（如 translate: 50% 0），不用 transform 承担初始偏移；transform 留给平台拖拽。
+- 收起态不给 left/top/right/bottom 加 !important；平台默认位置不可用时，补不带 !important 的初始 right/top，让平台拖拽的内联样式优先。
+- 以上参数用 CSS 变量承载（--fab-size / --fab-size-mobile / --fab-edge / --fab-top / --fab-half / --fab-radius / --fab-bg / --fab-fg / --fab-border / --fab-shadow / --fab-open-size / --fab-open-bottom / --fab-close），写卡时由玩家确认默认值。
+B. 拖拽与打开态
+- 拖拽、落点由平台处理；CSS 不模拟吸附，也不改写拖拽后的坐标。
+- 打开态：底部居中（桌面 110px、移动 20px，玩家可改）、40×40、z-index 2147483647；关闭键始终可见可点；[data-state="open"] 与 [aria-expanded="true"] 双写；移动端单独校准。
+- 打开态可以接管 left/right/top/bottom，因为此时按钮是关闭键，不再承担拖拽；两态必须同一元素，不新增 HTML。
+C. 图标
+- 平台原生图标先隐藏；::before 承载自定义内容。
+- 可用来源：单个文字/符号（✕、×）、CSS/内联 SVG 的简单规则图形、emoji、图标字体、Recraft SVG；由玩家选择。
+- 简单规则图形可直接用 CSS 或内联 SVG 代码做；复杂/不规则图形用 Recraft SVG 或玩家提供的图形。
+- 图标字体按平台已加载的字体使用；emoji 直接作为字符使用；不新增外部字体请求。
+- ::before 设 pointer-events: none；不改按钮点击热区；图形保留透明安全边距。
+D. 验收
+- 桌面/手机各看一次：初始可见、可拖拽、拖拽后不被 CSS 拉回；打开态置顶、关闭可点；背景图/不透明度滑块不受影响；reduced-motion 无循环动画。
+
 ---
 第 9 章 · 工作流程
 本框架以已验证能力库为基础开展设计。
 默认优先复用已验证的容器、正则表达式、HTML 结构生成机制和 CSS 选择器，不要求每次任务重新分析平台 DOM 或从零验证已有能力。
 只有当现有能力库无法满足目标需求时，才进入新能力调查和验证。
+9.0 第三部分开始时必问：是否做行动建议一键复制按钮
+进入第三部分、开始出方案前，先问一句：
+> 这张卡要不要做「行动建议一键复制按钮」？平台会把前三条行动建议渲染成可点击按钮。
+选择分支：
+- **选「否」**：按原行动建议格式（纯文本 3 条 + 第 4 条「自定义：」）继续；第一部分不预写平台块，第三部分不加按钮相关正则/CSS。
+- **选「是」**：第三部分按 5.8 做；但必须先把第一部分的【行动建议】规则返工成平台块格式（标题 + `<suggested_questions>` 前 3 条 + 第 4 条块外），重新交付并重新取得第一部分 PASS，再继续第三部分。
+约束：
+- 不要在第三部分开始时默认做按钮；
+- 不要在第一次写第一部分时预写平台块；
+- 返工第一部分时，只改【行动建议】段，不改其他已 PASS 的内容；改完该部分 PASS 失效，必须重新验证；
+- 用户中途改主意（原本选否、后来要做按钮）时，同样回到第一部分返工行动建议规则，再回到第三部分。
 9.1 改样式前置动作
 1. 先读原卡对应章节和现有 `built_in_css`，列出「现有规则 / 本次新增规则」；同一元素已有 `:focus/:hover/:disabled` 时，先明确保留哪一层，再写覆盖。
 2. 每版交付必须带：版本号 + 一句话差异 + 一个肉眼可验证点（例：「箭头应出现、平台图标应消失」）。
@@ -904,6 +1208,7 @@ G. 最终验证
 - [ ] 未验证能力没有被标记为已完成。
 - [ ] 关键样式在实际渲染结果中确实生效，而不只是代码存在。
 - [ ] 已区分基础能力已验证与本次组合效果已验证。
+- [ ] 启用下一步问题建议时（5.8）：原文严格符合平台格式（行首、3–5 条、每条 ≥7 字、单行、标签 ≤4 字符）；清理规则在「编号条目」之前；原 action-card 仍包整段、框内四条建议都在；第 4 条没有进块；记忆卡边界允许空行；启用 CSS 美化时作用域用共同外层、锚点挂 `.card-content`、键帽带 `#customized-answer-content`、不使用 `:root` 变量；按下前三行有下沉/内阴影反馈、第 4 行不反馈。
 ---
 框架总原则
 1. 优先复用已验证能力。 不重复发明已有技术，也不要求每次任务重新探测已确认的平台结构。

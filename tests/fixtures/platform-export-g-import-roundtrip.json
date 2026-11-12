@@ -1,0 +1,118 @@
+{
+  "ptx": "x",
+  "default_msg_count": 6,
+  "ext": {
+    "ai_variable_enabled": true
+  },
+  "wb": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "tmp_val": "default",
+  "mperm": 3,
+  "lang": "zh-Hant",
+  "shortcut_cmd": [
+    {
+      "label": "呃呃呃",
+      "command_text": "去请求"
+    }
+  ],
+  "ban_wd": [
+    "哈克"
+  ],
+  "cover": "https://catai.wiki/94c321e8-decd-404b-e3fe-ca8c91627c00/cover",
+  "back_img": "https://catai.wiki/b92bac9e-55d7-4e2b-4c44-5f7ee5b3d200/bg",
+  "avail_not_pub": true,
+  "vis_pf": 0,
+  "opening": "選擇一段开场白",
+  "title": "x",
+  "cg_bk": [
+    {
+      "id": "901067f9-5a6e-482a-9fb0-65279419f2bb",
+      "image_url": "catai.wiki/50d732e5-38a4-41c9-d309-752b1bc28e00/w=3000",
+      "key_mode": "or",
+      "key_region": [
+        "ai"
+      ],
+      "keys": [
+        "呃呃"
+      ],
+      "map_area": "chat",
+      "name": "得到",
+      "show_name": true,
+      "unlock_hint": "发送",
+      "show_unlock_hint": true,
+      "is_gallery": true,
+      "gallery_group": "",
+      "value_type": 1,
+      "image_configs": []
+    }
+  ],
+  "chk_tag": "",
+  "built_in_css": "/* x */",
+  "cvr_tiny": "",
+  "ai_variable_json": "{}",
+  "bg_mobile": "https://catai.wiki/c5ea64bf-308a-4078-6f80-ce60ba249300/mobile",
+  "bgmusic": {
+    "tracks": [
+      {
+        "id": "0f9846d5-ea96-41f0-86e4-cb1643e37d5f",
+        "url": "https://bg-music.catai.wiki/music/b60b2c2d-193d-4970-922d-bb47ad277f52/0f9846d5-ea96-41f0-86e4-cb1643e37d5f.mp3",
+        "song": "梦中的婚礼 MARIAGE D' AMOUR",
+        "cover": "",
+        "singer": ""
+      }
+    ],
+    "autoplay": true
+  },
+  "preset_type": 1,
+  "desc": "<div>x</div>",
+  "suggest_q_after": {
+    "enabled": true
+  },
+  "tp": 1,
+  "v_mode": 0,
+  "regex_rp": [
+    {
+      "group": "",
+      "scope": 1,
+      "title": "x",
+      "is_enable": true,
+      "match_regex": "x",
+      "replace_text": "x",
+      "is_only_render": null
+    }
+  ],
+  "suggest_q": [],
+  "summary": "x",
+  "summary_config": {
+    "big_prompt": "",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "",
+    "enable_status": 2
+  },
+  "preset_chats": [],
+  "labels": [],
+  "dis_css_mod": true,
+  "posttxt": "x",
+  "ai_v_prompt": "x",
+  "prpt": "x",
+  "cat": 0,
+  "is_anon": true,
+  "ai_variable_template": "x"
+}

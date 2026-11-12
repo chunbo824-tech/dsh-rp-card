@@ -29,7 +29,7 @@ const DOC = {
 };
 
 const SPEC = {
-  writing: `依据 ${DOC.writing}：生成写卡正文、前缀词、后缀词、世界书、开场协议；后缀以【时间地点】为固定首段；交付后停止等待人工平台验证。`,
+  writing: `依据 ${DOC.writing}：生成写卡正文、前置词、后置词（首行「玩家输入已结束。」，其后文风约束）、世界书、开场协议；输出格式在主提示词内声明，AI 输出以【时间地点】为固定首段；交付后停止等待人工平台验证。`,
   profile: `依据 ${DOC.profile}：生成完整单文件 HTML；交付后停止等待人工平台验证。`,
   chat: `依据 ${DOC.chat}：生成 built_in_css 与 rgx_rep；交付后停止等待人工平台验证。`,
   variables: `依据 ${DOC.variables}：生成 Schema、变量 Prompt 与模板；交付后停止等待人工平台验证。`,
@@ -69,7 +69,7 @@ function pendingAssetUploads(out) {
 }
 
 const STRING_FIELDS = [
-  'title', 'ppt', 'ptx', 'post_text', 'opening_statement',
+  'title', 'summary', 'ppt', 'ptx', 'post_text', 'opening_statement',
   'desc', 'built_in_css', 'ai_variable_tmpl', 'ai_v_prompt', 'ai_v_json',
 ];
 
@@ -154,7 +154,7 @@ async function resolveCwd(ctx) {
 
 function emptyStage() {
   return {
-    title: '', ppt: '', ptx: '', post_text: '', opening_statement: '', wb: [],
+    title: '', summary: '', ppt: '', ptx: '', post_text: '', opening_statement: '', wb: [],
     desc: '', built_in_css: '', rgx_rep: [],
     ai_variable_tmpl: '', ai_v_prompt: '', ai_v_json: '',
     ext: { ai_variable_enabled: false },
@@ -163,7 +163,7 @@ function emptyStage() {
 
 /** 各部分拥有的字段；单部分导入件只保留自己那几项（卡名除外，用于平台识别）。 */
 const OWNED_FIELDS = {
-  writing: ['ppt', 'ptx', 'post_text', 'opening_statement', 'wb'],
+  writing: ['summary', 'ppt', 'ptx', 'post_text', 'opening_statement', 'wb'],
   profile: ['desc'],
   chat: ['built_in_css', 'rgx_rep'],
   variables: ['ai_variable_tmpl', 'ai_v_prompt', 'ai_v_json'],
@@ -183,7 +183,10 @@ function normalizeStage(part, stage) {
   const s = { ...base, ...raw };
   // 平台导出会换键名：按别名把任意已知格式归一到内部规范字段。
   for (const k of STRING_FIELDS) {
-    const picked = pickField(raw, k);
+    // 简介在平台随机导出件里出现过 summary / sum_info / abs_txt / smry / abstract 五种键名，阶段 JSON 统一叫 summary。
+    const picked = k === 'summary'
+      ? ['summary', 'sum_info', 'abs_txt', 'smry', 'abstract'].map((x) => raw[x]).find((v) => typeof v === 'string')
+      : pickField(raw, k);
     const value = picked !== undefined ? picked : s[k];
     s[k] = typeof value === 'string' ? value : value == null ? '' : String(value);
   }
@@ -203,6 +206,7 @@ function ownCheck(part, s) {
     for (const k of ['ppt', 'ptx', 'post_text', 'opening_statement']) {
       if (!s[k].trim()) err(`${k} 不能为空`);
     }
+    // post_text 承载后置词文风约束，首行必须是「玩家输入已结束。」（CUE016 校验）。
     if (!s.wb.length) err('世界书 wb 不能为空');
     s.wb.forEach((e, i) => {
       if (!String(e && e.value != null ? e.value : '').trim()) err(`世界书第 ${i + 1} 条 value 正文为空`);
@@ -268,36 +272,41 @@ function renderSource(part, s) {
       `- 阶段 JSON：${STAGE_FILE.writing}`,
       '- 本文件与阶段 JSON 由同一次 deliver 生成，内容来自同一份阶段数据。',
       '',
-      '## 一、主提示词（ppt）',
+      '## 一、简介（summary → 平台 sum_info，可选）',
+      '',
+      s.summary || '（未写简介：不影响交付；用户需要时再补）',
+      '',
+      '## 二、主提示词（ppt）',
       '',
       s.ppt,
       '',
-      '## 二、前缀词（ptx）',
+      '## 三、前置词（ptx：文风与输入判定）',
       '',
       s.ptx,
       '',
-      '## 三、后缀词（post_text）',
+      '## 四、后置词（post_text：文风约束）',
       '',
       s.post_text,
       '',
-      '## 四、开场白（opening_statement）',
+      '## 五、开场白（opening_statement）',
       '',
       s.opening_statement,
       '',
-      '## 五、世界书（wb）',
+      '## 六、世界书（wb）',
       '',
       '> 正文只写世界知识；触发配置写在对应附注中，不进入正文。',
       '',
       renderWorldbookSection(s),
       '',
-      '## 六、导入位置',
+      '## 七、导入位置',
       '',
       '| 内容 | 平台字段 |',
       '| --- | --- |',
       '| 卡名 | `title` |',
+      '| 简介（可选） | `sum_info` |',
       '| 主提示词 | `ppt` |',
-      '| 前缀词 | `ptx` |',
-      '| 后缀词 | `post_text` |',
+      '| 前置词 | `ptx` |',
+      '| 后置词（文风约束） | `post_text` |',
       '| 开场白 | `opening_statement` |',
       '| 世界书 | `wb` |',
       '',
@@ -369,7 +378,10 @@ function renderRequirementAnalysis(state) {
     '- 时间地点：固定首段【时间地点】+「时间：」「地点：」，正文从其后开始',
     '- 角色信息：固定段落，逐字填入、此后逐字复制',
     '- 记忆区：短期 5 条 / 长期 5 条 / 总 1000 字符，规则照搬',
-    '- 行动建议：3 条具体 + 第 4 条固定「自定义：」',
+    '- 行动建议：3 条具体 + 第 4 条固定「自定义：」；默认按此纯文本写，第一次写本部分不要预写平台按钮格式，也不要自行判断是否做按钮；只有用户明确要求或第三部分选「是」时，才返工为平台块格式并重新 PASS',
+    '- 卡名：第一部分按主题命名，写进 `title`（平台 `name`）；用户已给名字时沿用，不另起',
+    '- 简介（可选，平台字段 sum_info）：玩家未提供时问一次是否需要代写；不写不影响交付',
+    '- 主角归属：玩家在档案页自定义主角 → 行为不变；主角由作者（插件用户）给定 → 主角设定写入主提示词 ppt，不只放世界书',
     '',
     '## 6. 关键假设',
     '- （用户没明说、由你按合理默认补的项，逐条列出）',
@@ -735,6 +747,9 @@ function passText(out, part, feedback) {
     );
   } else if (nextPart) {
     lines.push(`下一步：${PART_NAMES[nextPart]}。先询问用户是否有补充，再给出该部分方案并等待审批。`);
+    if (nextPart === 'chat') {
+      lines.push('第三部分开始先问一句：「这张卡要不要做行动建议一键复制按钮？平台会把前三条行动建议渲染成可点击按钮。」选「是」时先返工第一部分的行动建议规则并重新 PASS；选「否」按原纯文本行动建议继续。不要默认做按钮。');
+    }
     if (state.formatChoice === 'semantic' && nextPart === 'profile') {
       lines.push('第一部分与第三部分已通过，现在才进入第二部分（初始化档案页）。');
     }
@@ -1092,7 +1107,7 @@ export function apply(ctx) {
   bindService(ctx, 'tools', (c, tools) => {
     c.effect(() => tools.register({
       name: 'card_review',
-      description: '用户上传自制 RP 卡（平台导出的 JSON，含旧版键名）时，评估逻辑与体量并生成优化版：status → ingest（读卡）→ audit（结构/体量/逻辑审计）→ plan（优化方案，先给用户看）→ apply（用户确认后写入改写版）→ export（产出可导入的 v2 文件）。不要走 card_build 四部分流程；工具不调模型，改写由 agent 完成。体量是内部相对量，不宣称平台 token 或积分消耗。',
+      description: '用户上传自制 RP 卡（平台导出的 JSON，含平台随机键名组合）时，评估逻辑与体量并生成优化版：status → ingest（读卡）→ audit（结构/体量/逻辑审计）→ plan（优化方案，先给用户看）→ apply（用户确认后写入改写版）→ export（产出可导入的 v2 文件）。不要走 card_build 四部分流程；工具不调模型，改写由 agent 完成。体量是内部相对量，不宣称平台 token 或积分消耗。',
       parameters: {
         type: 'object',
         properties: {
@@ -1369,13 +1384,13 @@ export function apply(ctx) {
         '- 产出分三份：世界书条目（进第一部分）、视觉参考（独立交付，给第二三部分）、资料库文件（留在 .card-build/library/）。',
         '',
         '## 上传自制卡的评估与优化（工具 card_review / 命令 /card-review）',
-        '触发：用户上传或粘贴自己的 RP 卡（平台导出的 JSON，可能是旧版键名），说「帮我看看这张卡」「评估一下」「优化逻辑／体量」「为什么这么占上下文」「这张卡哪里有问题」。',
+        '触发：用户上传或粘贴自己的 RP 卡（平台导出的 JSON，可能是平台随机键名组合之一），说「帮我看看这张卡」「评估一下」「优化逻辑／体量」「为什么这么占上下文」「这张卡哪里有问题」。',
         '- 不要走 card_build 四部分流程，也不要让用户重做卡；直接用 card_review 在现有卡上做。',
         '- 步骤：`status` → `ingest`（`file` 或 `text`）→ `audit` → 用通俗话把结论讲给用户（先讲必修，再讲每轮体量基线）→ 用户明确要优化后 `plan` 出方案 → 用户确认方案后你按方案改写字段 → `apply`（只提交改动字段或整卡 JSON）→ `export`。',
         '- 对话附件先落盘到工作区（如 `.card-build/review/upload-<name>.json`），再把实际路径传给 `ingest`；不要假设附件路径可直接读。用户只发截图或正文时，说明本流程需要平台导出的 JSON，让用户重新导出，不要猜字段。',
         '- 闸门：audit 需要 ingest；plan 需要 audit；apply 需要 plan；export 需要 apply。apply 会重新审计，引入新的必修问题会被拒收；只有用户明确同意承担风险才带 `force`。',
         '- 优化前先做全作品评估：通读 `ppt` / `ptx` / `post_text` / `desc` / `built_in_css` / `rgx_rep` / `ai_variable_tmpl` / `ai_v_json` / `ai_v_prompt`，确认前端/面板层是否已经实现同一份数据（商店索引、列表、表单等）。面板已用代码建立的商店库不要在世界书里再写一份索引。',
-        '- 尊重导出件原字段名：不要为了“规范”改名或强行转 v2；旧版/非 v2 源导出时沿用原键名与结构（工具输出 `card.optimized.source.json`），保留封面、标签、简介、背景等原设置。未登记别名会记到 `.card-build/alias-suggestions.json`，不要猜字段；补别名是框架侧的活，确认后单独发版。',
+        '- 尊重导出件原字段名：不要为了“规范”改名或强行转 v2；非 v2 标准键源导出时沿用原键名与结构（工具输出 `card.optimized.source.json`），保留封面、标签、简介、背景等原设置。未登记别名会记到 `.card-build/alias-suggestions.json`，不要猜字段；补别名是框架侧的活，确认后单独发版。',
         '- 改写守则：只压缩、去重、补缺、重排；不改世界事实、角色设定、尺度档位与玩家代理边界。`wb` / `rgx_rep` 是整组替换，只改别的字段时补丁里就只放那个字段。',
         '- 开场白为空不报错：若确认 `desc` 前端已有复制/剪贴板能力，静默；只做过部分检查或没检测到复制时，`audit` 会把问题放进 `questions`，先问用户「网页是否已经内置开场指令并带有复制功能」，不要直接补开场白，也不要把它当错误。',
         '- 格式/状态判断只给思路：插件不预设字段名。让 AI 自己找卡片规定的输出字段；触发词含空格/冒号/标题符号时，与卡片自己的格式比对，一致就不报。正文只服务某地点/状态而触发词是通用行为词时，提示可能同时触发；触发词是规定格式时，只有内容与条目不一致才报错。',
@@ -1386,7 +1401,7 @@ export function apply(ctx) {
         '- 大卡/二次测试先做全局评估，再逐个部分优化：先 `audit` 通读全卡，`plan` 后按字段组（ppt / ptx+post / wb / desc+CSS+正则 / 变量面板）逐组改写并 `apply`；每改一组先看 `compare.md`，确认没有引入新问题再改下一组，不要一次性全改。',
         '- 先读补充材料 `supplements/上传卡评估.md`，里面有审计编号、估算口径与改写边界。',
         `- 规范依据：评估前按问题涉及层读对应章节——世界书/触发/状态机 → ${DOC.writing} 模块四；档案页/展示 → ${DOC.profile}；聊天页 CSS/正则 → ${DOC.chat}；变量面板/商店索引/面板数据 → ${DOC.variables}；成人向 → ${path.join(DOCS_DIR, '5-成人向补充.txt')}；审卡清单 → ${path.join(DOCS_DIR, 'supplements', '审查清单.md')}；评估框架 → 工作区根 角色卡评估框架.md（若存在，打分由 card_evaluate 实现）。`,
-        '- 导出件是整卡覆盖：提醒用户先备份原卡，导入后实测几轮；旧版导出件的标签/BGM/封面等设置无法映射到 v2，需要在平台里补设。',
+        '- 导出件是整卡覆盖：提醒用户先备份原卡，导入后实测几轮；平台随机键名组合里的设置键（标签/BGM/封面等）不一定能映射到 v2 标准键，导入后若显示不对，需要在平台里补设。',
         '',
         '## 教学模式（默认关闭）',
         '默认按正常节奏干活，不讲解原理。',
@@ -1457,8 +1472,8 @@ export function apply(ctx) {
         '- 子智能体不可用时，向用户报告"当前模型无视觉、子智能体不可用"并停下，不要假装已检查。',
         '',
         '## 流程（前三部分＝可玩版本，第四部分＝可选拓展；每部分交付后必须停下）',
-        '1. writing：卡名、主提示词 `ppt`、前缀 `ptx`、后缀 `post_text`、开场白、世界书 `wb`（每条含正文与 key/match_type/key_region/value_region/depth/enable）。',
-        '后缀 `post_text` 的第一段固定为【时间地点】+「时间：」「地点：」，正文从其后开始；该标题与字段名不得改写，聊天页正则据此包裹正文容器。前缀快照的时间、地点与首段共用同一份事实。',
+        '1. writing：卡名、主提示词 `ppt`、前置词 `ptx`、后置词 `post_text`（首行「玩家输入已结束。」，其后文风约束）、开场白、世界书 `wb`（每条含正文与 key/match_type/key_region/value_region/depth/enable）。',
+        '输出格式在主提示词 `ppt` 里声明：AI 输出的第一段固定为【时间地点】+「时间：」「地点：」，正文从其后开始；该标题与字段名不得改写，聊天页正则据此包裹正文容器。时间、地点取从历史对话确认的已确认事实，不再另设前置快照。',
         '首轮的地点取出生点（档案或开场确定的初始位置），时间不预先指定、由运行时 AI 首轮生成后保持连续；第一部分只写规则，不给具体时间。',
         '世界书触发词必须与档案页实际采集的字段取值逐字一致（种族、职业、出身等不出现两种叫法），否则玩家选项永远触发不到对应条目。',
         '世界书触发自包含于第一部分：能否触发只由本部分规定的输出格式与内容决定；第三部分只做玩家视角渲染，不进入 AI 上下文，不参与触发。',
@@ -1470,6 +1485,7 @@ export function apply(ctx) {
         '2. profile：`desc` 完整单文件 HTML。硬约束：地图/全景/立绘/插画必须用 `image_asset` 产图，不得用 CSS 或手写 SVG 拼替代品；透明人物立绘走 Recraft、其余位图走 Seedream；轮播类交互必须首尾循环；界面文案面向玩家，禁止复述需求或数据来源；抽取库条目必须含名称与效果，不许空壳条目；重新随机必须重抽所有未锁定字段，不得残留上一次的选中值或「未知」。**跨部分边界：desc 只做初始化页 iframe 内控件；平台聊天原生输入/发送按钮/消息气泡归第三部分，不得在 desc 里新建聊天输入替代它。**若需求是“终端风格输入栏”，只在第三部分 built_in_css 改原生输入；desc 里只能做展示或复制，不能发送到聊天。',
         '动态几何（见 档案页 §2.11）：图像上的点位必须相对图像内容框定位，图片与点位同处一个变换容器（transform 不得只加在 img 上）；位移只能由布局尺寸推导，禁止用 getBoundingClientRect 反推已变换坐标；循环轮播的瞬移复位要等动画结束（transitionend 或同源时长）；受约束控件钳制后回写控件本身并动态更新 max，约束收紧时回写当前值；拖拽用 pointerdown/move/up（move/up 挂 window），8px 阈值区分点击与拖动，容器声明 touch-action，拖动期间关 transition。',
         '3. chat：`built_in_css` 与 `rgx_rep`。每条正则：`scope` 省略即 1（USER），要 AI=2 / GLOBAL=10 才显式写；`is_enable` 必填；`match_regex` 与 `replace_text` 配对，`replace_text` 允许空字符串；`is_only_render` 按需。',
+        '进入第三部分、开始出方案前，必须先问用户一句：「这张卡要不要做行动建议一键复制按钮？平台会把前三条行动建议渲染成可点击按钮。」用户选「是」时，先返工第一部分的【行动建议】规则（标题 + `<suggested_questions>` 前 3 条 + 第 4 条块外），重新交付并重新取得第一部分 PASS，再继续第三部分；选「否」时按原纯文本行动建议继续。不要在第三部分开始时默认做按钮，也不要在第一次写第一部分时预写平台格式。',
         '正文容器的正则起点用第一部分已固定的首段【时间地点】：从该段到下一固定段落标题之间是完整正文块，可整体包进同一个容器；不要另造锚点，也不要改动第一部分已交付的标题与字段名。',
         '背景图：平台字段 `bg_image`（电脑）/ `bg_mobile`（手机）由作者填写 URL，插件不产出这两项资产，CSS 不得写死图片地址。',
         '气泡半适配不透明度滑块：内层容器一律 transparent；气泡本体底色只写 `:not([style])` / `[style=""]` 兜底，不得无条件 `background !important` 覆盖平台内联样式；气泡与正文不用 backdrop-filter 或整块遮罩；页面根容器与输入区渐隐层不得用不透明实色块压住背景图。验收标准是滑块为 0 时背景图在桌面与手机宽度下完整可见。',
@@ -1477,7 +1493,7 @@ export function apply(ctx) {
         '按钮统一走聊天页 §8.7 状态层：锚点只用 §2.3 已登记 ID（含 #ai-mod-button、#customized-*-button、#toggle-sub-buttons）或 `button[data-slot="pagination-link"]`；禁止用 `button.css-xxxxx` 这类 MUI 动态类。',
         '按钮状态用 CSS 变量统一（--btn-fg / --btn-fg-hover / --btn-opacity / --btn-opacity-active），只改 color、background-color、opacity、border-color、filter、transition；不改 display、尺寸与字号。不写 `outline: none`：焦点保留平台默认，确需自定义只用 :focus-visible 且必须可见。',
         '4. variables（可选拓展）：`ai_variable_tmpl` / `ai_v_prompt` / `ai_v_json` / `ext.ai_variable_enabled`。',
-        '浮动按钮硬约束（变量面板 §7.5，实现仍在第三部分 built_in_css，不得写进模板）：收起态 fixed 贴右侧（约一半在屏内）、展开态移到视口底部居中，位置与尺寸全部 CSS 显式给定、移动端单独校准；展开态 `z-index: 2147483647` 浮于所有浮层之上，关闭键必须始终可点；打开态双写 `[data-state="open"]` 与 `[aria-expanded="true"]`；平台原生图标先隐藏，用 `::before` 承载，图标由 Recraft 生成 SVG（`image_asset fetch_svg`，asset_type=icon_svg），不得用 emoji、字体图标或手写路径替代。',
+        '浮动按钮适配（docs/3 §8.12，实现仍在第三部分 built_in_css，不写进模板）：收起态 fixed，初始位置/尺寸/半出屏由玩家选择；用 translate 做初始偏移，不用 transform 锁死按钮；收起态坐标不加 !important，拖拽/落点由平台处理；打开态底部居中、`z-index: 2147483647`、双写状态、关闭键始终可点；图标可用文字/符号、CSS 或内联 SVG 简单图形、emoji、图标字体或 Recraft SVG，由玩家选择。',
         '',
         '## 图像能力设置（第二部分开始前必经）',
         '第二部分通常需要图像能力。进入第二部分前先调用 `image_asset`（action=plan）；返回 `needSetup: true` 时，**先让用户完成设置卡**，不要直接开始写 profile。',
@@ -1497,6 +1513,7 @@ export function apply(ctx) {
         '**必须同时提醒用户**：变量面板的浮动入口（`#customized-variable-panel-floating-button`）与面板内按钮的外观都属于第三部分的 `built_in_css`；想改这些外观要回第三部分改 CSS 并重新验证第三部分，不能写进面板模板。',
         '',
         '每部分：写阶段 JSON → `template` 取骨架或直接写文件 → `deliver --part X --file <路径>` → **停止**，等待用户明确回复“第 N 部分 PASS”。',
+        '第一部分必须产出卡名（`title`，平台 `name`）与简介（`summary`，平台 `sum_info`，可选）：卡名由你按主题命名，用户已给则沿用；简介按 docs/1 的规则问一次是否代写。完整组装件也由第一部分提供这两项，后续部分不得覆盖。',
         '',
         '## 每一部分先出方案、再动手',
         '每个部分开工前，先给用户看这一部分要做什么（通俗版）：本部分负责什么、会改哪些文件、用户会看到什么、需要用户决定什么。',
@@ -1522,6 +1539,10 @@ export function apply(ctx) {
         '- 最后 `card_evaluate submit`：传 gates（G1/G2/G3）、anchors、evidence、na、preset、strengths/weaknesses/advice/keep，以及 memory_rounds 或 memory_setting + ai_summary。',
         '- 准入任一不通过＝不合格，终止评分，不硬凑分数。工具只做折算与审计，不改作品；报告写入 `qa/evaluation.md`。评分只衡量工程完成度，不衡量作品价值。',
         '',
+        '## 文件编辑与编码',
+        '- 禁止用 PowerShell `Get-Content -Raw` + `Set-Content -Encoding UTF8` 改写含中文的 UTF-8 文件：Windows PowerShell 会按 ANSI 解码 UTF-8，造成不可逆乱码。',
+        '- 改文件优先用 `read` / `edit` / `write` 工具；必须用脚本时，让 Node 以 `utf8` 读写；必须用 PowerShell 时，用 `[System.IO.File]::ReadAllText` / `WriteAllText` 并显式指定 UTF-8 编码，禁止 `Get-Content` / `Set-Content` 往返。',
+        '',
         '## 硬规则',
         '- 用户上传自制卡（评估、优化、查逻辑或体量）时走 `card_review`，不要走 card_build 四部分流程；`apply` 前必须有用户对优化方案的明确同意。',
         '- 上传卡的报告只写体量指标与相对优化，不得声称平台已验证，也不得宣称消耗数字：平台按积分计费，我们无法估算积分；只能说「改这里会让体量变小」。体量换算是内部相对量，仅用于同一张卡的前后对比。',
@@ -1529,7 +1550,7 @@ export function apply(ctx) {
         '- `assemble` 的门槛是：前三部分（writing/profile/chat）当前版本全部 PASS，即可生成「可玩版本」；四部分都 PASS 时生成「完整版」，并入变量面板。第四部分未做不算失败，它属于可选拓展。',
         '- 不要在第三部分 PASS 后自动开始第四部分；必须让用户在「组装 / 评估 / 面板」三者中明确选择。',
         '- 变量面板的浮动入口与按钮外观归第三部分 `built_in_css`，改它们要回第三部分并重新验证。',
-        '- 主提示词只放 `ppt`；`ptx` 只放状态快照；非归属字段用合法空占位，不得覆盖其他部分。',
+        '- 输出格式只放 `ppt`；`ptx` 只放玩家输入判定（末尾「以下为玩家输入：」）；`post_text` 首行「玩家输入已结束。」，其后只放文风约束；非归属字段用合法空占位，不得覆盖其他部分。',
         '- 未确认的平台枚举、常驻编码、正则执行时机必须标注待验证，不得伪造平台验收。',
         '- 目标平台支持成人内容：不要询问用户「是否支持成人内容」，也不要在任何字段写安全声明、免责声明、内容警告或「如感不适请停止」一类提示。尺度由玩法设定决定，不用免责话术表达。',
         '- 供应商分工固定：位图（背景图/地图/场景/带环境的人物图）**只能**用 `image_asset generate`（Seedream）；矢量（图标/装饰/透明背景人物立绘）**只能**用 `image_asset fetch_svg`（Recraft）。不要用 `image_generate` 等其它生图工具做保底，也不要让 Recraft 产出位图。',

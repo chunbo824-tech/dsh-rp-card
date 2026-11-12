@@ -48,9 +48,9 @@ test('parseCardJson 容忍 BOM、数组与包装对象，坏 JSON 给两条路',
   assert.throws(() => parseCardJson('[]'), /顶层必须是一个对象/);
 });
 
-test('旧版键名与新格式都能归一，并记录未知键', () => {
+test('随机键名组合与新格式都能归一，并记录未知键', () => {
   const legacy = {
-    nm: '旧版卡',
+    nm: '随机组合卡',
     pre_prompt: '主提示词',
     pre_text: '前缀',
     post_tx: '【时间地点】\n时间：X\n地点：X',
@@ -65,7 +65,7 @@ test('旧版键名与新格式都能归一，并记录未知键', () => {
     foo_unknown: 1,
   };
   const { card: c, meta } = normalizeReviewCard(legacy);
-  assert.equal(c.title, '旧版卡');
+  assert.equal(c.title, '随机组合卡');
   assert.equal(c.ptx, '前缀');
   assert.equal(c.post_text.includes('【时间地点】'), true);
   assert.equal(c.opening_statement, '开场');
@@ -77,8 +77,8 @@ test('旧版键名与新格式都能归一，并记录未知键', () => {
   assert.equal(c.ext.ai_variable_enabled, true);
   assert.equal(c.bg_img, 'https://example.com/bg.png');
   assert.equal(meta.format, 'legacy');
-  assert.ok(!meta.unknownKeys.includes('tg'), 'tg 已登记为旧平台设置键');
-  assert.ok(!meta.unknownKeys.includes('language'), 'language 已登记为旧平台设置键');
+  assert.ok(!meta.unknownKeys.includes('tg'), 'tg 已登记为平台随机设置键');
+  assert.ok(!meta.unknownKeys.includes('language'), 'language 已登记为平台随机设置键');
   assert.ok(meta.unknownKeys.includes('foo_unknown'), '真正未知的键仍要记录');
 
   const v2 = {
@@ -105,7 +105,7 @@ test('potx 后缀与 bgmob 手机背景别名能读入，不再误判为空', ()
   const m = estimateMetrics(c, { memoryRounds: 5 });
   assert.ok(m.token.growthChars > 0, 'potx 必须计入前后置词，而不是 0');
   const a = auditReview(c, { memoryRounds: 5 });
-  assert.ok(!codes(a).includes('RV003'), '读到 potx 后不应再报后缀词为空');
+  assert.ok(!codes(a).includes('RV003'), '读到 potx 后不应再报后置词为空');
 });
 
 test('RV234：post_text 为空但存在疑似后缀未知键时，提示别名缺失而不是当成真空', () => {
@@ -192,9 +192,9 @@ test('RV210：高置信嵌套量词照报，换行+空白的常见安全写法�
   assert.ok(!codes(auditReview(panel, { memoryRounds: 5 })).includes('RV210'), '任务面板常见写法不应误报');
 });
 
-test('旧版平台设置键映射到 v2 并保留值', () => {
+test('平台随机设置键映射到 v2 并保留值', () => {
   const raw = {
-    nm: '旧版卡', pre_prompt: 'p', pre_text: 'x', post_tx: 'y', world_book: [],
+    nm: '随机组合卡', pre_prompt: 'p', pre_text: 'x', post_tx: 'y', world_book: [],
     tg: [{ name: '标签' }], language: 'zh-Hans', bgmusic: { tracks: [], autoplay: true },
     is_anon: true, visible_platform: 2, summary: '摘要', cg_bk: [1], sug_q_aa: { enabled: false },
     bw: ['禁词'], def_sent_cnt: 8, cover_img: 'https://example.com/c.png', sugg_ques: ['q'], scmd: ['/a'],
@@ -420,7 +420,7 @@ test('导出保留原卡的平台设置；不认识的字段原样追加，不�
   assert.equal(built.dropped.length, 0);
 });
 
-test('旧版导出件的托管字段会换成优化版，旧设置键映射到 v2', () => {
+test('随机键名组合的导出件：托管字段换成优化版，设置键按登记映射', () => {
   const raw = {
     nm: '旧卡', pre_prompt: 'p', pre_text: 'ptx', post_tx: 'post', greet_st: 'hi',
     world_book: [], inner_css: '.a{}', ai_v_template: 'tpl',
@@ -438,12 +438,27 @@ test('旧版导出件的托管字段会换成优化版，旧设置键映射到 v
   assert.equal(built.platform.bg_img, 'https://example.com/legacy.png');
   assert.deepEqual(built.platform.labels, raw.tg);
   assert.ok(!built.dropped.includes('tg'), 'tg 已映射到 labels，不再算未写入');
-  assert.ok(!built.extras.includes('pre_text'), '托管旧键不能作为额外字段重复追加');
+  assert.ok(!built.extras.includes('pre_text'), '托管随机键名不能作为额外字段重复追加');
   assert.ok(!built.extras.includes('post_tx'));
   assert.ok(!built.extras.includes('world_book'));
   assert.ok(!built.extras.includes('inner_css'));
   assert.ok(!built.extras.includes('ai_v_template'));
   assert.ok(!built.extras.includes('back_img'));
+});
+
+test('随机键名组合：简介归一 sum_info，标签不搬运，其余原样进 extras', () => {
+  const raw = {
+    name: '占位', pre_prompt: 'p', lore_bk: [], ptx: 'x', post_text: 'y',
+    abs_txt: '简介正文', tags: [{ name: '标签', id: 'i', type: 'app' }],
+    suggested_questions: ['问题'], suggested_questions_after_answer: { enabled: false },
+    summary_config: { big_prompt: '', small_prompt: '', model_config: { name: '', provider: '' }, enable_status: 2 },
+  };
+  const { card: c } = normalizeReviewCard(raw);
+  const built = buildPlatformExport(raw, c);
+  assert.equal(built.platform.sum_info, '简介正文', '简介同义键归一到 sum_info');
+  assert.deepEqual(built.platform.labels, [], '标签不搬运（平台机械规定，插件不写标签）');
+  assert.deepEqual(built.platform.tags, raw.tags, '标签原样保留');
+  assert.deepEqual(built.extras.sort(), ['suggested_questions', 'suggested_questions_after_answer', 'tags'].sort());
 });
 
 test('source 导出沿用原字段名，未映射键原样保留', () => {

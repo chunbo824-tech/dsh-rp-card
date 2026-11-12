@@ -1,0 +1,136 @@
+{
+  "lbls": [],
+  "chk_tag": "",
+  "ai_v_json": "{}",
+  "visible_platform": 1,
+  "lore_bk": [
+    {
+      "group": "x",
+      "match_type": 2,
+      "key": "_or_x",
+      "key_region": 6,
+      "value_type": 0,
+      "value": "x",
+      "value_configs": [],
+      "value_region": 1,
+      "sort": 0,
+      "depth": 0,
+      "probability": 100,
+      "enable": true
+    }
+  ],
+  "built_in_css": "/* x */",
+  "banned_words": [
+    "哈克"
+  ],
+  "lang": "zh-Hant",
+  "cvr_tiny": "",
+  "tmp_val": "default",
+  "kind": 1,
+  "ai_variable_tmpl": "x",
+  "ai_summary_config": {
+    "big_prompt": "#Role: 记忆管理专家\n## Task\n将历史大总结{big_summary}与按时间从早到晚排列的最新小总结{small_summary}合并为更新后的完整大总结。只输出更新后的大总结正文，不输出解释、标题或代码块。\n## Input Format:\nbig_summary:\n{big_summary}\nsmall_summary（共N条，按时间从早到晚，以小总结1、小总结2……分隔）:\n{small_summary}\n## 合并规则\n1.输出是\"当前状态快照\"，不是本阶段流水账。保留big_summary中仍重要的剧情、人物关系、关键设定和未解决事项；融入small_summary新增信息；合并重复内容；按剧情发展更新发生变化的状态。\n2.旧信息未被再次提及不视为失效；但若新信息明确覆盖旧状态，则更新旧状态。同一事实冲突时，以时间更新且与最新小总结一致者为准。身份、关系、位置、生死、目标等状态变化必须更新；已解决事项不再列为未解决。\n3.仅当big_summary和small_summary均无相关信息时才写\"未知\"，不要推测或编造。\n4.时间：起始时间沿用big_summary最早时间；无则取small_summary最早时间；最新时间取small_summary最新时间。地点列主要地点。角色列核心人物及其关系/当前状态。\n5.情节按事件时间整合关键事件、人物关系与心理变化、重要设定、当前状态及未解决事项；未解决事项在情节末尾用\"未解决：……\"简短列出。情节正文控制在500字以内，关键设定与未解决事项优先保留，用短句和分号压缩，不写无关细节。\n6.若big_summary为空，仅根据small_summary生成；若small_summary为空，保留并轻度整理big_summary；若两者均为空，输出：时间:未知|地点:未知|角色:未知|情节:未知。\n7.语言制约:输出的语言以及前置标签必须与输入的对话记录语言严格一致\n8.用词:合并时保留原有措辞，不换成文雅的、含糊的、绕过去的说法。人物说过什么、做过什么，按原样留。换一个词，后面就接不上。\n9.边界:只写发生了什么和到了哪一步，不写怎么发生的。不判对错，不解释意义，不写\"气氛\"\"张力\"\"这一幕很重要\"这类读感、猜测和评论。\n10.含糊:拿不准的地方照含糊写，不要推测补全。补出来的比漏掉的更麻烦，补错了后面全歪。\n11.禁止:不得重写对话，不得续写剧情，不得补全内容。只输出一行大总结，写完立刻停止。\n## Output Format\n只输出下面这一行，不输出其他任何内容，不加开场话，不加结尾语：\n时间:剧情起始时间至最新时间|地点:主要地点|角色:重要人物及关系/状态|情节:整合后的完整剧情脉络，包括关键事件、人物关系与心理变化、重要设定、当前状态及未解决事项。",
+    "model_config": {
+      "name": "",
+      "provider": ""
+    },
+    "small_prompt": "# Role: 记忆管理专家\n## Task:\n你的任务是接收一条\"对话记录\",\"对话记录\"包括输入{user_message}和输出{assistant_message}，输出一行\"记忆摘要\"\n## Rules:\n短期记忆必须遵循格式： 时间|场景|角色|事件+变化\n-包括:时间,地点,人物及事件要素,不清楚的要素记录为未知,事件+变化部分控制在150字以内\n-重点:概括总结的内容都要根据剧情客观实在总结内容,精炼关键点,着重心理变化\n-例外:忽略记忆区,忽略行动建议,忽略剧情建议\n-语言制约:输出的语言以及前置标签必须与输入的对话记录语言严格一致\n-用词:按对话原话记录,不换成文雅的、含糊的、绕过去的说法。人物说过什么、做过什么,按原样留。换一个词,后面就接不上。\n-边界:只写发生了什么和到了哪一步,不写怎么发生的。不判对错,不解释意义,不写\"气氛\"\"张力\"这类读感、猜测和评论。\n-含糊:拿不准的地方照含糊写,不要推测补全。补出来的比漏掉的更麻烦,补错了后面全歪。\n-禁止:不得重写对话,不得续写剧情,不得补全内容。只输出一行摘要,写完立刻停止。\n## Output Format:\n只输出下面这一行，不输出其他任何内容，不加开场话，不加结尾语：\n时间:2001年9月11日 10:00|地点:世贸大楼|角色:消防员,市民|情节:接到报警电话冲进大楼，开始抢救大火，当时并不知道发生了什么",
+    "enable_status": 1
+  },
+  "is_anon": true,
+  "ref_id2": 1,
+  "bgi": "https://catai.wiki/b92bac9e-55d7-4e2b-4c44-5f7ee5b3d200/bg",
+  "preset_chats": [
+    {
+      "title": "的",
+      "chats": [
+        {
+          "query": "的",
+          "answer": "1"
+        },
+        {
+          "query": "而且",
+          "answer": "驱蚊器"
+        }
+      ],
+      "suggested_questions": [
+        "我",
+        "阿1"
+      ]
+    }
+  ],
+  "cate": 0,
+  "ai_v_prompt": "x",
+  "extend": {
+    "ai_variable_enabled": true
+  },
+  "pretxt": "x",
+  "mod_perm": 3,
+  "dis_css_mod": true,
+  "name": "x",
+  "default_msg_count": 6,
+  "bgmob": "https://catai.wiki/c5ea64bf-308a-4078-6f80-ce60ba249300/mobile",
+  "descr": "<div>x</div>",
+  "preset_type": 2,
+  "msc": {
+    "tracks": [
+      {
+        "id": "0f9846d5-ea96-41f0-86e4-cb1643e37d5f",
+        "url": "https://bg-music.catai.wiki/music/b60b2c2d-193d-4970-922d-bb47ad277f52/0f9846d5-ea96-41f0-86e4-cb1643e37d5f.mp3",
+        "song": "梦中的婚礼 MARIAGE D' AMOUR",
+        "cover": "",
+        "singer": ""
+      }
+    ],
+    "autoplay": true
+  },
+  "prompt_pre": "x",
+  "rrep": [
+    {
+      "group": "",
+      "scope": 1,
+      "title": "x",
+      "is_enable": true,
+      "match_regex": "x",
+      "replace_text": "x",
+      "is_only_render": null
+    }
+  ],
+  "post_tx": "x",
+  "smry": "x",
+  "cvr": "https://catai.wiki/94c321e8-decd-404b-e3fe-ca8c91627c00/cover",
+  "cg_bk": [
+    {
+      "id": "901067f9-5a6e-482a-9fb0-65279419f2bb",
+      "image_url": "catai.wiki/50d732e5-38a4-41c9-d309-752b1bc28e00/w=3000",
+      "key_mode": "or",
+      "key_region": [
+        "ai"
+      ],
+      "keys": [
+        "呃呃"
+      ],
+      "map_area": "chat",
+      "name": "得到",
+      "show_name": true,
+      "unlock_hint": "发送",
+      "show_unlock_hint": true,
+      "is_gallery": true,
+      "gallery_group": "",
+      "value_type": 1,
+      "image_configs": []
+    }
+  ],
+  "shortcut_commands": [
+    {
+      "label": "呃呃呃",
+      "command_text": "去请求"
+    }
+  ],
+  "suggested_questions_after_answer": {
+    "enabled": true
+  },
+  "avail_not_pub": true,
+  "ost": "選擇一段开场白",
+  "suggest_q": []
+}
