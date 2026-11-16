@@ -776,6 +776,11 @@ CSS 中通过伪类匹配状态时，用后缀选择器匹配注入的 ID（如 
 行动建议栏可附加一键复制按钮，通过平台原生复制代码（非 JS）实现。
 需要平台把行动建议渲染成可点击按钮时，走 5.8 的 suggested_questions 兼容；平台按钮模式下仍用原 `details.action-card` 把整段【行动建议】包回原框（四条建议都在），不要剥掉平台块或只包第 4 条。
 属可选能力，不强制。
+复制在聊天页只有三条路，都不需要作者写 JS：
+- 平台原生消息复制按钮 "#customized-copy-button"：平台自己负责复制，作者只能做样式，不能把它当自定义复制入口；
+- 平台渲染的 "suggested_questions" 按钮：平台负责点击后把建议填入输入框，作者只提供文本（见 5.8）；
+- 玩家手动选中后复制。
+硬性约束："built_in_css" 与 "rgx_rep" 里不得出现 "<script>"、onclick 或 "javascript:" 来实现复制；平台 iframe 内 "navigator.clipboard" 系列与 "window.clipboardData" 实测失败，只有 "document.execCommand('copy')" 可用（见档案页 3.6.1）。需要把固定文本一次复制给玩家（初始化指令、设置指令等）的场景，放到初始化页用档案页 3.6.1 的方案，不要塞进聊天页 CSS 或正则。
 ---
 第 8 章 · CSS 设计
 8.1 选择器设计原则

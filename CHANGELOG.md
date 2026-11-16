@@ -1,5 +1,17 @@
 # 更新记录
 
+## 1.7.3
+
+复制能力约束补全：平台 iframe 里只有同步复制可用，把它写进规范、系统提示词与上传卡审计。
+
+- 平台实测（2026-11-16，平台自定义 HTML 区域逐项验证）：`navigator.clipboard.writeText`、`ClipboardItem` + `navigator.clipboard.write`、`window.clipboardData.setData` 全部失败；`document.execCommand('copy')` 用临时 textarea 或选中可见文本都成功。
+- `docs/2-档案页.txt` 新增 3.6.1「平台 iframe 内的复制实现」：实测结果表与硬性要求——只走 `execCommand`、禁止异步剪贴板作主路径或兜底、必须在点击处理函数的同步栈内执行、临时 textarea 的写法、按返回值判定成功失败、失败要给可选中的文本、默认文案不预设“已复制”；4.4 的 iframe「默认不使用」清单加入异步剪贴板与 `window.clipboardData`。
+- `docs/3-聊天页.txt` 7.5 补复制边界：平台消息复制按钮 / `suggested_questions` / 玩家手动选中三条路；CSS 与正则禁止 `<script>`、onclick、`javascript:` 实现复制。
+- `docs/4-变量面板.txt` 1.2 补面板复制边界：面板没有 JS，只有 `data-panel-copy` 静态字符串与玩家手动选中复制；禁止 onclick / `<script>` / execCommand，禁止宣称能自动复制勾选结果。
+- 系统提示词 profile / variables 两段同步该约束，`tests/prompt-rules.test.mjs` 增加断言防漂移。
+- 新增 RV238：上传卡 `desc` 只用异步剪贴板、没有 `execCommand('copy')` 时报 warning，说明玩家点了没反应或粘出来是空的；`docs/supplements/上传卡评估.md` 同步编号与判断口径。
+- 测试总数 127。
+
 ## 1.7.2
 
 平台字段兼容与行动建议按钮流程补强。

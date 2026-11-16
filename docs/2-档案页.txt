@@ -281,6 +281,22 @@ d) 骨架已有能力，不要为这两项单独发明新的前端交互。
 - 提供一键复制功能。
 - 复制成功和失败均有明确反馈。
 - 允许玩家返回修改信息后重新生成。
+3.6.1 平台 iframe 内的复制实现（2026-11-16 平台实测，硬约束）
+初始化页运行在平台 iframe / srcdoc 里，异步剪贴板 API 会被判为无权限。在平台自定义 HTML 区域用五种写法逐一实测，只有同步复制能成功：
+复制方法| 实测结果| 采用
+"document.execCommand('copy')" + 临时 textarea| 成功| 首选
+"document.execCommand('copy')" + 选中页面可见文本| 成功| 兜底（只在首选失败时用）
+"navigator.clipboard.writeText"| 失败| 禁止
+"ClipboardItem" + "navigator.clipboard.write"| 失败| 禁止
+"window.clipboardData.setData"| 失败（仅 IE 时代存在）| 禁止
+硬性要求：
+- 复制只走 "document.execCommand('copy')"。它已被标记为废弃，但在当前平台是唯一实测可用的路径；不得因为“已废弃”就换成异步剪贴板 API。
+- 禁止把 "navigator.clipboard" 系列（"writeText" / "write" / "ClipboardItem"）或 "window.clipboardData" 写成主路径或兜底：它们在这里必然失败，只会让成功/失败反馈失真。
+- 复制必须在点击处理函数的同步调用栈里执行：先 "await"、先发请求、先 "setTimeout" 再复制，用户手势已经失效，浏览器会直接拒绝。待复制的文本要提前算好，点击时直接取用。
+- 临时 textarea 的写法："position: fixed" + 移出视口（"left: -9999px"，或 "opacity: 0" + 1px 尺寸）、"readonly"、"tabindex=\"-1\""、"aria-hidden=\"true\""、字号不小于 16px（避免移动端聚焦放大）；"setSelectionRange(0, value.length)" 后立即复制，复制结束马上移除节点并把焦点还给按钮。内容较长时用 textarea，不要用 input。
+- 成功/失败以 "execCommand" 的返回值（布尔）和是否抛异常为准：返回 "false" 或抛错一律按失败反馈，不得“点了就显示已复制”。
+- 失败时必须给玩家一条能走的路：把待复制文本以可选中形式展示出来，或直接提示“长按 / 全选后手动复制”，不要只报一句错误。
+- 复制按钮的默认文案不得预设“已复制”；反馈只描述本次真实结果。
 输出内容应与 RP 卡实际使用的开场协议相匹配，不必拘泥于统一格式。
 开场协议分情况（与第一部分一致）：
 - 简单卡（主角设定直接写在提示词里）：平台开场白字段是主入口；本页生成的内容只做补充或不用。
@@ -350,6 +366,7 @@ d) 骨架已有能力，不要为这两项单独发明新的前端交互。
 - "postMessage" 与父窗口通信。
 - "history.pushState" 和浏览器历史导航。
 - "alert"、"confirm"、"prompt"。
+- "navigator.clipboard" 系列（"writeText" / "write" / "ClipboardItem"）与 "window.clipboardData"：平台 iframe 实测失败；复制只用 "document.execCommand('copy')"（见 3.6.1）。
 - "location.reload"。
 - 浏览器打印和下载作为主要输出方式。
 需要跨页面保存的初始化数据，使用页面自身的 JavaScript 状态管理。

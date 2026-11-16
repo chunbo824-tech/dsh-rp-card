@@ -45,4 +45,16 @@ for (const needle of ['8.9.1 图像背景上的控件保底', '8.9.2 固定气�
   assert.ok(chatDoc.includes(needle), `聊天页规范缺少：${needle}`);
 }
 
+// 5. 复制能力：平台 iframe 实测只有 execCommand 可用（2026-11-16）
+assert.match(captured, /document\.execCommand\("copy"\)/, '系统提示词必须写明复制只走 execCommand');
+assert.match(captured, /禁止 `navigator\.clipboard`/, '系统提示词必须禁止 navigator.clipboard 作主路径或兜底');
+assert.match(captured, /data-panel-copy/, '变量面板复制必须指向平台原生 data-panel-copy');
+assert.match(profileDoc, /3\.6\.1 平台 iframe 内的复制实现/, '档案页规范缺少复制实现小节');
+assert.match(profileDoc, /navigator\.clipboard/, '档案页规范必须点名不可用的异步剪贴板 API');
+assert.match(profileDoc, /window\.clipboardData/, '档案页规范必须点名不可用的 window.clipboardData');
+assert.match(chatDoc, /复制在聊天页只有三条路/, '聊天页规范缺少复制边界');
+const variablesDoc = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'docs', '4-变量面板.txt'), 'utf8');
+assert.match(variablesDoc, /面板内的复制没有脚本可用/, '变量面板规范缺少复制边界');
+assert.match(variablesDoc, /data-panel-copy/, '变量面板规范缺少平台原生复制说明');
+
 console.log('prompt rules tests passed');

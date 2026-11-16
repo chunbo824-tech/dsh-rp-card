@@ -235,6 +235,20 @@ test('开场白为空不报错；前端有复制功能时静默，没有则生�
   assert.equal(hasOpening.questions.length, 0);
 });
 
+test('RV238：只写异步剪贴板、没有 execCommand 时提醒复制在平台会失败', () => {
+  const bad = auditReview(card({ desc: '<!doctype html><script>navigator.clipboard.writeText("x")</script>' }), { memoryRounds: 5 });
+  const hit = bad.issues.find((i) => i.code === 'RV238');
+  assert.ok(hit, '必须报 RV238');
+  assert.equal(hit.severity, 'warning');
+  assert.match(hit.message, /iframe|execCommand/);
+
+  const good = auditReview(card({ desc: '<!doctype html><script>const t=document.createElement("textarea");t.value="x";document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();</script>' }), { memoryRounds: 5 });
+  assert.ok(!good.issues.some((i) => i.code === 'RV238'), '用 execCommand 同步复制时不报');
+
+  const panel = auditReview(card({ desc: '<!doctype html><div data-panel-copy="x">复制</div>' }), { memoryRounds: 5 });
+  assert.ok(!panel.issues.some((i) => i.code === 'RV238'), '平台原生复制不报');
+});
+
 test('自触发、重复条目、重复 key、空正文、停用条目都能识别', () => {
   const c = card({
     wb: [

@@ -74,6 +74,10 @@ radio + :checked Tab 已验证方案 当前变量面板单例环境
 平台原生复制 <div data-panel-copy="..."> 依赖平台对该属性的原生处理
 纯视觉装饰 <div class="xxx-btn"> 只承担视觉呈现，不宣称具备按钮行为
 硬性约束：不得将普通 <button> 当作具备自定义业务功能的交互控件使用。
+面板内的复制没有脚本可用：变量面板没有 JavaScript 执行环境，"document.execCommand('copy')" 与 "navigator.clipboard" 系列在面板里都无法使用（前者要脚本调用，后者被平台 iframe 权限拒绝，见档案页 3.6.1）。面板能用的复制方式只有两条：
+· 平台原生复制："<div data-panel-copy="...">"，复制的是属性里的静态字符串，且依赖平台对该属性的原生处理；动态内容、勾选结果、AI 生成的文本都不会被自动带上。
+· 展示可选中文本，由玩家自己选中复制（长按 / Ctrl+C）。
+硬性约束：不得在面板模板里用 "<script>"、onclick、"javascript:" 伪协议实现复制，也不得宣称面板按钮能自动复制勾选结果或动态内容。需要“点一下就复制”的场景，放到初始化页（第二部分）用 execCommand 方案，或在提示词里让玩家手动复制。
 关于 role="button" 与 tabindex="0"：
 role="button" 只提供辅助技术语义（屏幕阅读器会把元素识别为按钮），tabindex="0" 只提供键盘焦点能力。两者本身不会生成点击、Enter 或 Space 对应的业务行为。 使用 <div role="button" tabindex="0"> 时，必须确认：
 · 实际激活行为由平台提供（如 data-panel-copy 由平台处理点击事件）。
