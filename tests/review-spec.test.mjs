@@ -42,7 +42,7 @@ assert.match(prompt, /用户明确同意/, 'apply 前必须用户同意');
 
 // 2. 版本与更新记录
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-assert.equal(pkg.version, '1.7.5');
+assert.equal(pkg.version, '1.7.6');
 assert.equal(core.FLOW_VERSION, '1.7.0');
 assert.ok(pkg.files.includes('lib/**'), 'lib/** 必须在打包白名单里');
 const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
@@ -51,7 +51,8 @@ assert.ok(changelog.includes('## 1.7.1'));
 assert.ok(changelog.includes('## 1.7.2'));
 assert.ok(changelog.includes('## 1.7.3'), '应包含 1.7.3 版本小节');
 assert.ok(changelog.includes('## 1.7.4'), '应包含 1.7.4 版本小节');
-assert.ok(changelog.includes('## 1.7.5'), '应包含当前 1.7.5 版本小节');
+assert.ok(changelog.includes('## 1.7.5'), '应包含 1.7.5 版本小节');
+assert.ok(changelog.includes('## 1.7.6'), '应包含当前 1.7.6 版本小节');
 assert.ok(changelog.includes('card_review'));
 
 // 3. 补充材料必须给出闸门、口径与改写边界

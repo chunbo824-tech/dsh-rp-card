@@ -1493,7 +1493,7 @@ export function apply(ctx) {
         '背景图插件不产出，组装时只透传：来源里已有填好的 URL 就保留，否则留空占位，并在组装报告里提示「导入后再设置」。',
         '按钮统一走聊天页 §8.7 状态层：锚点只用 §2.3 已登记 ID（含 #ai-mod-button、#customized-*-button、#toggle-sub-buttons）或 `button[data-slot="pagination-link"]`；禁止用 `button.css-xxxxx` 这类 MUI 动态类。',
         '按钮状态用 CSS 变量统一（--btn-fg / --btn-fg-hover / --btn-opacity / --btn-opacity-active），只改 color、background-color、opacity、border-color、filter、transition；不改 display、尺寸与字号。不写 `outline: none`：焦点保留平台默认，确需自定义只用 :focus-visible 且必须可见。',
-        '面板 / 页签 / 条目切换禁止用 radio + `:checked`（docs/3 §7.2 强制要求）：平台消息内 label 点击不可靠，2026-11-19 实测选中态可能变化但内容不切换、或点击完全无响应；需要切换时改用多个 `details` 折叠或单页直接展示，不再引入 radio 组与唯一 name/id。变量面板（docs/4）是平台原生环境，不受此限。',
+        '面板 / 页签 / 条目切换禁止用 radio + `:checked`（docs/3 §7.2 强制要求）：平台消息内 checked 状态不可控，2026-11-19 实测默认 checked 会抢住分类、点击后内容不切换或回到默认页；需要切换时改用多个 `details` 折叠或单页直接展示，不再引入 radio 组与唯一 name/id。变量面板（docs/4）是平台原生环境，不受此限。',
         '4. variables（可选拓展）：`ai_variable_tmpl` / `ai_v_prompt` / `ai_v_json` / `ext.ai_variable_enabled`。',
         '变量面板没有 JS（见 变量面板 §1.2）：面板内不得用 `<script>`、onclick、`javascript:` 或 execCommand 做复制，只能用平台原生 `data-panel-copy`（属性内静态字符串）或让玩家手动选中复制；不要宣称面板按钮能自动复制勾选结果或动态内容。',
         '浮动按钮适配（docs/3 §8.12，实现仍在第三部分 built_in_css，不写进模板）：收起态 fixed，初始位置/尺寸/半出屏由玩家选择；用 translate 做初始偏移，不用 transform 锁死按钮；收起态坐标不加 !important，拖拽/落点由平台处理；打开态底部居中、`z-index: 2147483647`、双写状态、关闭键始终可点；图标可用文字/符号、CSS 或内联 SVG 简单图形、emoji、图标字体或 Recraft SVG，由玩家选择。',
