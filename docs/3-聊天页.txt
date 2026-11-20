@@ -16,9 +16,11 @@ H2 · HTML 结构生成与 CSS 样式分离
 不得要求 CSS 完成它本身无法完成的结构生成工作。
 H3 · 交互机制按需引入
 不同交互需求采用相应机制，不得为了统一而强制所有组件使用同一种交互结构：
-- 独立展开、收起：可采用 "<details>"。
-- 需要互斥切换：**禁止用 radio + ":checked"**。2026-11-19 平台实测：checked 状态在消息内不同步——默认 checked 会抢住分类，点击后内容不切换或回到默认页；分类 / 页签切换一律改用多个 "<details>" 折叠或单页直接展示。
-- 需要根据 DOM 状态控制样式：可采用已验证有效的伪类机制（":has()" 等）；":checked" 只允许用于变量面板（docs/4 的平台原生环境），禁止用于消息内面板的显隐切换。
+- 独立展开、收起：用 "<details>" / "<summary>"，原生行为，不需要任何状态属性。
+- 需要互斥展开：用 '<details name="同组名">'，浏览器原生同组互斥；不要用单选控件实现「折叠互斥」。
+- 需要多选项切换（页签、子标签）：允许 "input[type=radio]" + ":checked ~"（同级兄弟）或 ":has(input:checked)"（同作用域）。实测在消息内可用，但必须同时满足 2.6.2 的四条硬条件。
+- 正则生成的 HTML 中禁止出现 "checked" 字面量；默认选中态一律由 CSS 兜底：":not(:has(input:checked))"，且该 input 必须真实存在于结构中，否则条件恒为真，会把受控内容全部隐藏。
+- 需要根据 DOM 状态控制样式：优先 ":has()"；":checked" 与 ":has()"均属「条件有效」，使用前须核对本文档记录的适用结构。
 - 只有实际需求需要时才引入唯一 ID 和关联属性。
 不得为了使用某种技术而人为增加组件复杂度。
 ---
@@ -214,18 +216,46 @@ data-* 状态：
 【人称与篇幅】是长线自定义人称 / 篇幅时的固定标记段（见 docs/1 模块一），不属于正文，不要把它并进 `.main-text-card` / `.narrative-card`；需要隐藏时由作者在 `built_in_css` 或正则里自行处理。
 2.5 正则生成交互层（需要唯一 ID 隔离）
 容器| 语义| 需要唯一 ID 的原因
-"details.doc-card.status-terminal-card[data-turn-id="…"]"| 状态终端| 卡内 tab 切换：历史方案用 "input[type=radio] + :checked ~"，**已禁止**；新卡改用 details 折叠或单页展示
+"details.doc-card.status-terminal-card[data-turn-id="…"]"| 状态终端| 卡内 tab 切换：可用 "input[type=radio] + :checked ~"（条件见 2.6.2），也可用 details 折叠；同一组件内不混用
 ".status-tab-form / .status-workspace / .status-main"| tab 表单、工作区、主面板| —
 "input.status-view-radio[id="status-view-…-restraint"]" 等| tab 单选| "name / id" 必须唯一
 "label.status-tab[for="status-view-…-restraint"]"| tab 按钮| "for" 必须与 "id" 一致
 "section.status-panel.status-panel-restraint" 等| 面板| 靠 ":checked ~" 显隐
-"details.doc-card.quest-card[data-turn-id="…"]"| 系统任务| 卡内条目切换：历史方案用 radio + ":checked ~"，**已禁止**；新卡改用 details 折叠
+"details.doc-card.quest-card[data-turn-id="…"]"| 系统任务| 卡内条目切换：可用 radio + ":checked ~"（条件见 2.6.2），也可用 details 折叠；同一组件内不混用
 ".quest-entry-radio[id="quest-select-…-N"]"| 任务单选| "name" 唯一
 "label.quest-entry-trigger[for="quest-select-…-N"]"| 任务条目| "for" 与 "id" 一致
 ".quest-entry-detail"| 任务详情面板| 靠 ":checked ~" 显隐
-这一类组件的共同特征（历史）：卡内曾用 radio + ":checked ~" 实现互斥切换。2026-11-19 平台实测消息内 label 点击不可靠，**禁止新增 radio + ":checked" 面板切换**。
-新卡一律改用 "<details>" 独立折叠（归入 2.4，不需要唯一 ID），不再保留互斥版本。
+这一类组件的共同特征：卡内用 radio + ":checked ~" 或 "<details>" 实现切换。早前「消息内 label 点击不可靠、禁止使用 radio」的记录作废：实测失败原因是标签与控件关联缺失、或正则里写了 "checked" 字面量，不是切换机制本身。使用条件见 2.6.2。
+
 折叠分支：只有玩家选择「把美化代码内置到 AI 输出」（semantic）时，才由第一部分输出协议直接产出 <details> 折叠结构；标准（正则）方案不让 AI 输出 HTML，需要折叠时由第三部分正则把【角色信息】【记忆区】等段落包成 details。两派不混用。
+
+2.6 面板交互实现规范
+2.6.1 机制选择
+需求| 机制| 是否需要唯一标识
+单项展开 / 收起| "details" / "summary"| 否
+同组互斥展开| 'details[name="…"]'| 组名唯一
+页签 / 子标签切换| radio + ":checked ~" 或 ":has()"| "name" 唯一
+仅视觉状态| ":has()"| 否
+
+2.6.2 单选切换的四条硬条件（全部满足才可用）
+1. "name" 在同一回合内唯一；同一回合出现多个同类实体时，必须带序号或名称后缀区分。
+2. 每个单选控件必须有可点的 "<label for>"，或由 "<label>" 直接包裹；标签不得位于 "display:none" 的祖先内。
+3. 正则侧不写 "checked"；默认态用 ":not(:has(input:checked))" 兜底。
+4. 单选控件与受控面板必须为同级兄弟，或同处一个 ":has()" 作用域，中间层级不得被打断。
+
+2.6.3 CSS 卫生
+- 替换或删除结构时，同批删除依赖该结构的样式规则。
+- 禁止保留 ":not(:has(…:checked))" 这类依赖已删除元素的恒真条件。
+- 同一组件不要叠加多份互相覆盖的规则，应一次性重写整段。
+
+2.6.4 布局几何：单一坐标系
+- 分栏宽度、分隔线位置、内容起点必须引用同一个 CSS 自定义属性。
+- 禁止用按比例缩放的背景图绘制分隔线，同时用固定长度单位定位内容——两者必然错位。
+
+2.6.5 交付前验证顺序
+1. 用脚本按真实顺序跑一遍正则链，确认无残留标记、无错位包裹。
+2. 手机视口须用固定尺寸承载容器（如 390×844 的 iframe）渲染；桌面浏览器无头模式存在最小窗口宽度，直接设小窗口截图会得到假的「出屏」结果。
+3. 桌面与手机各出一张渲染图，确认分隔线与内容互不重叠。
 无法排除的两组多名称：
 以下情况按实际证据处理，不得擅自认定其 DOM 关系。
 1. "#customized-answer-content" 与 "#customized-answer-content-markdown"：可能是父子关系，也可能是同一元素双标识。主用前者；涉及 Markdown 内容时，可使用已记录的 ".markdown-body" 后代选择器。没有实际结构证据时，不得将二者假定为必然的父子关系。
@@ -743,15 +773,15 @@ CSS| 使用实际注入的属性和伪类进行选择；不假设所有消息或
 - 去除原生 marker："summary::-webkit-details-marker { display: none; }" + "summary::marker { content: ""; }"。
 - 通过 "details[open]" 与 "details:not([open])" 区分展开/折叠态。
 - 自定义指示符号通过伪元素实现，不依赖浏览器默认三角。
-7.2 互斥切换（消息内禁用）
-**强制要求：禁止用 radio + ":checked" 在消息内做互斥切换。**
-原因：2026-11-19 平台实测，checked 状态在消息内不可控——默认 checked 会抢住分类，点击后内容不切换或回到默认页；即使本地浏览器验证通过，平台仍可能失效。
-替代：
-- 分类 / 页签 / 条目切换一律使用多个 "<details>" 独立折叠（纵向排列），或单页直接展示全部内容。
-- 不再为消息内面板引入 radio 组、label 关联、唯一 name / id 与 TURN_ID。
-以下为历史记录，只用于读懂旧卡，不得在新卡中使用：
-- 旧方案用 radio + ":checked" 和兄弟选择器实现切换，依赖 name 分组、id / for 对应、radio 在面板前。
-变量面板（docs/4）是平台原生环境，不受本条限制。
+7.2 互斥切换（消息内可用，但有条件）
+消息内可用 radio + ":checked" 或 "<details>" 实现互斥切换，具体条件见 2.6.2。
+早前「消息内禁用 radio」的记录作废：实测失败原因是标签与控件关联缺失、或正则里写了 "checked" 字面量，不是切换机制本身。另需注意：即使本地浏览器验证通过，也必须在平台实机确认一次。
+推荐做法：
+- 页签 / 子标签切换：radio + ":checked ~"（同级兄弟）或 ":has(input:checked)"，遵守 2.6.2 四条硬条件。
+- 折叠式互斥：'<details name="同组名">'，原生同组互斥，无需 name / id 关联。
+- 默认态：正则里不写 "checked"，由 ":not(:has(input:checked))" 兜底。
+旧卡中的 radio 实现（依赖 name 分组、id / for 对应、radio 在面板前）可作为参考，但需按 2.6.2 复核后再复用。
+变量面板（docs/4）是平台原生环境，同样适用。
 7.3 伪类状态控制
 保留已验证有效的 ":has()" 等伪类用法；":checked" 只允许用于变量面板，禁止用于消息内面板切换（见 7.2）。
 必须明确：

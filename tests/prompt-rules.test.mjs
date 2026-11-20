@@ -45,11 +45,14 @@ for (const needle of ['8.9.1 图像背景上的控件保底', '8.9.2 固定气�
   assert.ok(chatDoc.includes(needle), `聊天页规范缺少：${needle}`);
 }
 
-// 4.1 消息内面板切换禁止 radio + :checked（2026-11-19 平台实测 label 点击不可靠）
-assert.match(chatDoc, /禁止用 radio \+ ":checked"/, '聊天页规范必须禁止消息内 radio + :checked');
-assert.match(chatDoc, /7\.2 互斥切换（消息内禁用）/, '聊天页规范缺少 7.2 禁用小节');
-assert.match(chatDoc, /变量面板（docs\/4）是平台原生环境/, '变量面板应被排除在禁用之外');
-assert.match(captured, /面板 \/ 页签 \/ 条目切换禁止用 radio \+ `:checked`/, '系统提示词必须禁止 radio + :checked 面板切换');
+// 4.1 消息内面板切换按条件使用 radio / details（实测更正：失败原因是 association / checked 字面量）
+assert.match(chatDoc, /2\.6 面板交互实现规范/, '聊天页规范缺少 2.6 面板交互实现规范');
+assert.match(chatDoc, /2\.6\.2 单选切换的四条硬条件/, '聊天页规范缺少单选切换四条硬条件');
+assert.match(chatDoc, /正则生成的 HTML 中禁止出现 "checked" 字面量/, '规范必须禁止正则侧写 checked 字面量');
+assert.match(chatDoc, /details\[name="…"\]/, '规范必须给出同组互斥展开写法');
+assert.match(chatDoc, /7\.2 互斥切换（消息内可用，但有条件）/, '聊天页规范缺少 7.2 条件使用小节');
+assert.match(captured, /面板 \/ 页签 \/ 条目切换可用 radio \+ `:checked` 或 `details`/, '系统提示词必须给出 radio 的条件使用口径');
+assert.ok(!chatDoc.includes('禁止用 radio + ":checked"'), '不应再保留全面禁止 radio 的表述');
 
 // 5. 复制能力：平台 iframe 实测只有 execCommand 可用（2026-11-16）
 assert.match(captured, /document\.execCommand\("copy"\)/, '系统提示词必须写明复制只走 execCommand');

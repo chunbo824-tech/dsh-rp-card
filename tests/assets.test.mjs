@@ -37,7 +37,7 @@ assert.ok(!/<script/.test(clean), 'script 未清除');
 assert.ok(!/onload/.test(clean), '事件属性未清除');
 assert.ok(!/evil\.example/.test(clean), '外链未清除');
 assert.ok(/viewBox/.test(clean), 'viewBox 丢失');
-assert.deepEqual(validateSvg(clean), []);
+assert.deepEqual(validateSvg(clean), { errors: [], warnings: [] });
 
 // 3b. 生成器元数据与形变属性要被清掉
 const dirty2 = '<svg viewBox="0 0 10 10" preserveAspectRatio="none" xmlns:c2pa="http://c2pa.org/manifest"><metadata>PAYLOAD</metadata><rect width="10" height="10"/></svg>';
@@ -47,8 +47,20 @@ assert.ok(!/c2pa/.test(clean2), 'c2pa 命名空间未清除');
 assert.ok(!/preserveAspectRatio/.test(clean2), 'preserveAspectRatio 未清除');
 assert.ok(clean2.length < dirty2.length);
 
-// 4. 缺 viewBox 要报出来
-assert.ok(validateSvg('<svg><rect/></svg>').some((p) => p.includes('viewBox')));
+// 4. 缺 viewBox 要报出来（致命错误）
+assert.ok(validateSvg('<svg><rect/></svg>').errors.some((p) => p.includes('viewBox')));
+
+// 4b. 体积分两级：300KB 以内不提示；超过只给 warnings，不算错误（玩家自己决定用不用）
+const midSvg = `<svg viewBox="0 0 10 10">${'<rect width="10" height="10"/>'.repeat(4500)}</svg>`;
+assert.ok(Buffer.byteLength(midSvg, 'utf8') < 300 * 1024, '样例应小于 300KB');
+assert.deepEqual(validateSvg(midSvg), { errors: [], warnings: [] }, '300KB 以内不该提示');
+
+const bigSvg = `<svg viewBox="0 0 10 10">${'<rect width="10" height="10"/>'.repeat(16000)}</svg>`;
+assert.ok(Buffer.byteLength(bigSvg, 'utf8') > 300 * 1024, '构造的样例没超过 300KB');
+const bigCheck = validateSvg(bigSvg);
+assert.deepEqual(bigCheck.errors, [], '体积不该算错误');
+assert.equal(bigCheck.warnings.length, 1, '体积超线应给一条警告');
+assert.match(bigCheck.warnings[0], /300KB/);
 
 // 5. 内嵌片段：SVG 直嵌、图片必须用远程 URL
 const svgAsset = { id: 'svg-01', type: 'icon_svg', svg: clean };
@@ -98,6 +110,20 @@ assert.equal(fixed.renamed, true);
 assert.equal(fixed.to, 'assets/wrong.jpg');
 assert.ok(!fs.existsSync(path.join(tmp, 'assets', 'wrong.png')));
 assert.ok(fs.existsSync(path.join(tmp, 'assets', 'wrong.jpg')));
+
+// 8. validate_svg：体积超线只给 warnings，ok 仍为 true（产物可照常使用，由玩家决定）
+fs.writeFileSync(path.join(tmp, 'assets', 'big.svg'), bigSvg, 'utf8');
+fs.mkdirSync(path.join(tmp, '.card-build'), { recursive: true });
+fs.writeFileSync(
+  path.join(tmp, '.card-build', 'assets.json'),
+  JSON.stringify({ version: 1, assets: [{ id: 'svg-99', type: 'decoration_svg', localFile: 'assets/big.svg' }] }),
+  'utf8',
+);
+const checked = await runAssetAction({ action: 'validate_svg', asset_id: 'svg-99' }, tmp);
+assert.equal(checked.ok, true, '体积超线不应判失败');
+assert.equal(checked.problems.length, 0);
+assert.equal(checked.warnings.length, 1);
+assert.match(checked.warnings[0], /300KB/);
 
 console.log('assets tests passed');
 delete process.env.IMAGE_GEN_PROVIDER_API_KEY;

@@ -41,7 +41,7 @@ built_in_css 消息正文、页面视觉呈现、正则替换生成的结构、�
 定制面板批量内容展示 案例方案 存在已知硬伤，按选项规模和维护频率选择
 地图 Desktop/Mobile 两套 HTML 案例方案 特定布局需求下的实现
 背景 SVG Data URI（background-image） 已验证方案 已在既往作品实际生效；content: url() 写法另见 §7.2
-radio + :checked Tab 已验证方案 当前变量面板单例环境
+radio + :checked Tab 已验证方案 当前变量面板单例环境；消息内面板同样可用，条件见 docs/3 §2.6.2
 ---
 第 1 章 · 平台技术环境与硬性边界
 1.1 模板语法
